@@ -1,0 +1,55 @@
+name: smartspend
+description: "SmartSpend — personal finance mobile app."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  provider: ^6.1.2
+
+  # Networking
+  dio: ^5.7.0
+
+  # Fonts
+  google_fonts: ^6.2.1
+
+  # Navigation
+  go_router: ^14.6.3
+
+  # Charts
+  fl_chart: ^0.69.0
+
+  # Auth
+  google_sign_in: ^6.2.2
+  sign_in_with_apple: ^6.1.4
+
+  # Camera / image
+  camera: ^0.11.0+2
+  image_picker: ^1.1.2
+
+  # Persistence
+  shared_preferences: ^2.3.3
+
+  # Date / number formatting
+  intl: ^0.19.0
+
+  # SVG support
+  flutter_svg: ^2.0.10+1
+
+  # Network images
+  cached_network_image: ^3.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,17 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+go.work
+tmp/
+
+.env
+
+main
+*templ.go
+
+.DS_Store
+
