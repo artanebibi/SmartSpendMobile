@@ -1,7 +1,13 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiEndpoints {
   ApiEndpoints._();
 
-  static const baseUrl = 'https://cef8-185-100-244-20.ngrok-free.app';
+  static late final String baseUrl;
+
+  static void init() {
+    baseUrl = dotenv.env['BACKEND_URL'] ?? '';
+  }
 
   // Auth
   static const authGoogle = '/api/auth/google';

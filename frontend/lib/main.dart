@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:smartspend/core/network/api_endpoints.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/auth/providers/auth_provider.dart';
@@ -28,9 +29,13 @@ import 'features/wallets/screens/wallet_list_screen.dart';
 import 'features/profile/providers/profile_provider.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'shared/widgets/bottom_tab_bar.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+Future<void> main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  ApiEndpoints.init();
+
   runApp(const SmartSpendApp());
 }
 

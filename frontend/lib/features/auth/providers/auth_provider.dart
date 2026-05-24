@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
@@ -22,8 +23,7 @@ class AuthProvider extends ChangeNotifier {
   final _dio = ApiClient.instance;
   final _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId:
-        "512752411720-ph7ebi4amt81694n800pt5jr3aat1m6d.apps.googleusercontent.com",
+    serverClientId: dotenv.env['GOOGLE_CLIENT_ID'],
   );
 
   Future<void> tryRestoreSession() async {
@@ -57,9 +57,6 @@ class AuthProvider extends ChangeNotifier {
         ApiEndpoints.authGoogle,
         data: {'id_token': idToken},
       );
-
-      debugPrint('[Auth] POST ${ApiEndpoints.authGoogle} → status ${res.statusCode}');
-      debugPrint('[Auth] response body: ${res.data}');
 
       await _handleAuthResponse(res.data);
       _setLoading(false);
