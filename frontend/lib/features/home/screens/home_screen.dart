@@ -7,7 +7,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/transactions/providers/transaction_provider.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../../../shared/widgets/tx_row.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -64,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const AppStatusBar(),
                   _buildGreeting(user?.fullName ?? 'there', user?.initials ?? ''),
                   const SizedBox(height: 16),
                   _buildBalanceCard(

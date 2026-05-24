@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../transactions/providers/transaction_provider.dart';
@@ -24,7 +23,6 @@ class ProfileScreen extends StatelessWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(child: AppStatusBar()),
             SliverToBoxAdapter(child: _buildHeader()),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(child: _buildUserCard(context, auth)),

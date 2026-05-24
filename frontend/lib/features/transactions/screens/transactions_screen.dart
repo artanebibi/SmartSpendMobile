@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../../../shared/widgets/tx_row.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
@@ -81,7 +80,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           children: [
             CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(child: const AppStatusBar()),
                 SliverToBoxAdapter(child: _buildHeader(context)),
                 SliverToBoxAdapter(child: const SizedBox(height: 12)),
                 SliverToBoxAdapter(child: _buildFilterRow()),

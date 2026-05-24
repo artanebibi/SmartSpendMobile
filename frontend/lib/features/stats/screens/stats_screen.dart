@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../providers/stats_provider.dart';
 
 // Chart color palette matching React POC
@@ -69,7 +68,6 @@ class _StatsScreenState extends State<StatsScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(child: AppStatusBar()),
             SliverToBoxAdapter(child: _buildHeader()),
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
             SliverToBoxAdapter(child: _buildTabSwitcher()),

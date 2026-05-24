@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -24,7 +23,6 @@ class WalletListScreen extends StatelessWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(child: AppStatusBar()),
             SliverToBoxAdapter(child: _buildHeader(context)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             if (totalOwed > 0 || totalOwedToMe > 0)

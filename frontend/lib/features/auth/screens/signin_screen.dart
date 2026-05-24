@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../providers/auth_provider.dart';
 
 class SignInScreen extends StatelessWidget {
@@ -18,7 +17,6 @@ class SignInScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            const AppStatusBar(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(

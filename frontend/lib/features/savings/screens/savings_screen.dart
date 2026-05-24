@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
-import '../../../shared/widgets/app_status_bar.dart';
 import '../models/saving_model.dart';
 import '../providers/savings_provider.dart';
 
@@ -35,7 +34,6 @@ class _SavingsScreenState extends State<SavingsScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverToBoxAdapter(child: AppStatusBar()),
             SliverToBoxAdapter(child: _buildHeader(context)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
