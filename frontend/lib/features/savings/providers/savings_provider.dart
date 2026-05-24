@@ -70,7 +70,6 @@ class SavingsProvider extends ChangeNotifier {
     try {
       final now = DateTime.now();
       await _dio.post(ApiEndpoints.saving, data: {
-        'id': 0,
         'amount': 0,
         'from': now.toUtc().toIso8601String(),
         'to': (deadline ?? now.add(const Duration(days: 365)))

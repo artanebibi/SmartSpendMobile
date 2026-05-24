@@ -30,9 +30,15 @@ class TransactionProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    // Categories are fetched independently — a failure here must NOT block
+    // the transaction fetch, it just means we show 'Other' for all categories.
     try {
       await _loadCategories();
+    } catch (e) {
+      debugPrint('[TransactionProvider] _loadCategories failed: $e');
+    }
 
+    try {
       final params = <String, String>{};
       if (from != null) params['from'] = from.toUtc().toIso8601String();
       if (to != null) params['to'] = to.toUtc().toIso8601String();
@@ -42,38 +48,65 @@ class TransactionProvider extends ChangeNotifier {
         queryParameters: params.isEmpty ? null : params,
       );
 
-      final list = (res.data['data'] as List? ?? []);
-      _transactions = list.map((e) {
-        final catId = (e['category_id'] as num?)?.toInt();
-        final catName = _categories
-            .firstWhere(
-              (c) => c.id == catId,
-              orElse: () => const CategoryModel(id: 0, name: 'Other'),
-            )
-            .name;
-        return TransactionModel.fromJson(
-          e as Map<String, dynamic>,
-          categoryName: catName,
-        );
-      }).toList()
-          ..sort((a, b) => b.dateMade.compareTo(a.dateMade));
+      debugPrint('[TransactionProvider] GET transactions → ${res.statusCode} body: ${res.data}');
+
+      // Support both { data: [...] } and a bare list response
+      final raw = res.data;
+      final list = raw is List
+          ? raw
+          : (raw is Map ? (raw['data'] as List? ?? []) : <dynamic>[]);
+
+      final parsed = <TransactionModel>[];
+      for (final e in list) {
+        try {
+          final map = e as Map<String, dynamic>;
+          final catId = (map['category_id'] as num?)?.toInt();
+          final catName = _categories
+              .firstWhere(
+                (c) => c.id == catId,
+                orElse: () => const CategoryModel(id: 0, name: 'Other'),
+              )
+              .name;
+          parsed.add(TransactionModel.fromJson(map, categoryName: catName));
+        } catch (parseErr) {
+          debugPrint('[TransactionProvider] skipped malformed transaction: $parseErr | raw: $e');
+        }
+      }
+
+      _transactions = parsed..sort((a, b) => b.dateMade.compareTo(a.dateMade));
     } catch (e) {
       _error = e.toString();
+      debugPrint('[TransactionProvider] load() error: $e');
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> _loadCategories() async {
-    if (_categories.isNotEmpty) return;
+  Future<void> loadCategories({bool force = false}) async {
+    if (_categories.isNotEmpty && !force) return;
     try {
       final res = await _dio.get(ApiEndpoints.category);
-      _categories = (res.data['data'] as List? ?? [])
-          .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
+      debugPrint('[TransactionProvider] GET categories → ${res.statusCode} body: ${res.data}');
+
+      final raw = res.data;
+      final list = raw is List
+          ? raw
+          : (raw is Map ? (raw['data'] as List? ?? []) : <dynamic>[]);
+
+      _categories = list
+          .whereType<Map<String, dynamic>>()
+          .map((e) => CategoryModel.fromJson(e))
           .toList();
-    } catch (_) {}
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[TransactionProvider] loadCategories error: $e');
+    }
   }
+
+  // kept as an internal alias so load() still compiles
+  Future<void> _loadCategories() => loadCategories();
 
   Future<bool> add({
     required String title,
@@ -84,7 +117,6 @@ class TransactionProvider extends ChangeNotifier {
   }) async {
     try {
       await _dio.post(ApiEndpoints.transaction, data: {
-        'id': 0,
         'title': title,
         'price': price,
         'date_made': dateMade.toUtc().toIso8601String(),

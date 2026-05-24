@@ -8,29 +8,6 @@ import '../../../shared/widgets/category_dot.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
 
-class _Category {
-  final String name;
-  final String emoji;
-  const _Category(this.name, this.emoji);
-}
-
-const _expenseCategories = [
-  _Category('Food', '🍔'),
-  _Category('Transport', '🚌'),
-  _Category('Shopping', '🛍'),
-  _Category('Entertainment', '🎬'),
-  _Category('Health', '💊'),
-  _Category('Groceries', '🛒'),
-  _Category('Rent', '🏠'),
-  _Category('Education', '📚'),
-];
-
-const _incomeCategories = [
-  _Category('Salary', '💼'),
-  _Category('Freelance', '💻'),
-  _Category('Investment', '📈'),
-  _Category('Other', '✨'),
-];
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key, this.initial});
@@ -45,9 +22,19 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   late String _type;
   String _amount = '0';
-  String? _selectedCategory;
+  // Store both ID and name together — no name-lookup in _save() needed.
+  int? _selectedCategoryId;
+  String? _selectedCategoryName;
+  final _titleController = TextEditingController();
   final _noteController = TextEditingController();
   bool _saving = false;
+
+  void _selectCategory(CategoryModel cat) {
+    setState(() {
+      _selectedCategoryId = cat.id;
+      _selectedCategoryName = cat.name;
+    });
+  }
 
   @override
   void initState() {
@@ -56,21 +43,29 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (tx != null) {
       _type = tx.type;
       _amount = tx.price.toStringAsFixed(2);
-      _selectedCategory = tx.categoryName;
+      _selectedCategoryId = tx.categoryId;
+      _selectedCategoryName = tx.categoryName;
+      _titleController.text = tx.title;
     } else {
       _type = 'Expense';
-      _selectedCategory = 'Food';
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final provider = context.read<TransactionProvider>();
+      await provider.loadCategories();
+      if (mounted && _selectedCategoryId == null && provider.categories.isNotEmpty) {
+        _selectCategory(provider.categories.first);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _titleController.dispose();
     _noteController.dispose();
     super.dispose();
   }
-
-  List<_Category> get _categories =>
-      _type == 'Income' ? _incomeCategories : _expenseCategories;
 
   void _onKey(String key) {
     setState(() {
@@ -98,36 +93,44 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState(() => _saving = true);
     final provider = context.read<TransactionProvider>();
 
-    final catId = provider.categories
-        .firstWhere(
-          (c) => c.name == _selectedCategory,
-          orElse: () => CategoryModel(id: 0, name: _selectedCategory ?? ''),
-        )
-        .id;
+    final title = _titleController.text.trim().isEmpty
+        ? (_selectedCategoryName ?? 'Transaction')
+        : _titleController.text.trim();
 
     bool ok;
     if (widget.initial != null) {
       ok = await provider.update(TransactionModel(
         id: widget.initial!.id,
-        title: _selectedCategory ?? 'Transaction',
+        title: title,
         price: price,
         dateMade: widget.initial!.dateMade,
-        categoryId: catId == 0 ? null : catId,
-        categoryName: _selectedCategory ?? 'Other',
+        categoryId: _selectedCategoryId,
+        categoryName: _selectedCategoryName ?? 'Other',
         type: _type,
       ));
     } else {
       ok = await provider.add(
-        title: _selectedCategory ?? 'Transaction',
+        title: title,
         price: price,
         type: _type,
-        categoryId: catId == 0 ? null : catId,
+        categoryId: _selectedCategoryId,
         dateMade: DateTime.now(),
       );
     }
 
     setState(() => _saving = false);
-    if (ok && mounted) context.pop();
+    if (!mounted) return;
+    if (ok) {
+      context.pop();
+    } else {
+      final err = context.read<TransactionProvider>().error;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(err ?? 'Failed to save transaction. Please try again.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -146,6 +149,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   children: [
                     const SizedBox(height: 16),
                     _buildTypeToggle(),
+                    const SizedBox(height: 16),
+                    _buildTitleInput(),
                     const SizedBox(height: 24),
                     _buildAmountDisplay(),
                     const SizedBox(height: 24),
@@ -217,13 +222,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           return Expanded(
             child: GestureDetector(
               onTap: () {
-                setState(() {
-                  _type = t;
-                  _selectedCategory =
-                      (t == 'Income' ? _incomeCategories : _expenseCategories)
-                          .first
-                          .name;
-                });
+                setState(() => _type = t);
+                final cats = context.read<TransactionProvider>().categories;
+                if (cats.isNotEmpty) _selectCategory(cats.first);
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
@@ -320,6 +321,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildCategoryGrid() {
+    final categories = context.watch<TransactionProvider>().categories;
+
+    if (categories.isEmpty) {
+      return const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
     return GridView.count(
       crossAxisCount: 4,
       shrinkWrap: true,
@@ -327,10 +337,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       crossAxisSpacing: 8,
       mainAxisSpacing: 8,
       childAspectRatio: 0.85,
-      children: _categories.map((cat) {
-        final selected = _selectedCategory == cat.name;
+      children: categories.map((cat) {
+        final selected = _selectedCategoryId == cat.id;
         return GestureDetector(
-          onTap: () => setState(() => _selectedCategory = cat.name),
+          onTap: () => _selectCategory(cat),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
@@ -354,15 +364,59 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
                     color: selected ? AppColors.primary : AppColors.darkText,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList(),
+    );
+  }
+
+  Widget _buildTitleInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'TITLE',
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppColors.muted,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _titleController,
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: 'Title (e.g. Grocery run, Netflix...)',
+            hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 1.5),
             ),
           ),
-        );
-      }).toList(),
+        ),
+      ],
     );
   }
 

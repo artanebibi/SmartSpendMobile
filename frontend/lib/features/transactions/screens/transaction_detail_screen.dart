@@ -43,7 +43,7 @@ class _DetailBody extends StatelessWidget {
   Future<void> _delete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Delete transaction?',
             style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
         content: Text(
@@ -52,12 +52,12 @@ class _DetailBody extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: Text('Cancel',
                 style: GoogleFonts.inter(color: AppColors.muted)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text('Delete',
                 style: GoogleFonts.inter(
                     color: AppColors.error, fontWeight: FontWeight.w600)),
@@ -66,8 +66,22 @@ class _DetailBody extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
-      await context.read<TransactionProvider>().delete(tx.id);
-      if (context.mounted) context.pop();
+      final ok = await context.read<TransactionProvider>().delete(tx.id);
+      if (context.mounted) {
+        if (ok) {
+          context.pop();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.read<TransactionProvider>().error ??
+                    'Failed to delete transaction.',
+              ),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -114,19 +128,7 @@ class _DetailBody extends StatelessWidget {
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _delete(context),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.delete_outline_rounded,
-                          size: 18, color: AppColors.error),
-                    ),
-                  ),
+                  const SizedBox(width: 36),
                 ],
               ),
             ),
@@ -211,6 +213,29 @@ class _DetailBody extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 24),
+
+                    // Delete button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _delete(context),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                        label: Text(
+                          'Delete',
+                          style: GoogleFonts.inter(
+                              fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFEF2F2),
+                          foregroundColor: AppColors.error,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
                     // Edit button
                     SizedBox(

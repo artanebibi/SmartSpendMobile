@@ -76,6 +76,42 @@ class _StatsScreenState extends State<StatsScreen> {
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
               )
+            else if (stats.error != null && stats.pieData.isEmpty && stats.monthlyData.isEmpty)
+              SliverFillRemaining(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.bar_chart_outlined,
+                          size: 48, color: AppColors.muted),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Could not load statistics',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.darkText,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        stats.error!,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: _load,
+                        child: Text('Retry',
+                            style: GoogleFonts.inter(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else if (_tab == 0)
               SliverToBoxAdapter(child: _buildOverview(stats))
             else if (_tab == 1)

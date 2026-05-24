@@ -56,14 +56,25 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     if (name.isEmpty || target <= 0) return;
 
     setState(() => _isLoading = true);
-    final ok = await context.read<SavingsProvider>().create(
-          name: name,
-          targetAmount: target,
-          color: _color,
-          deadline: _deadline,
-        );
+    final provider = context.read<SavingsProvider>();
+    final ok = await provider.create(
+      name: name,
+      targetAmount: target,
+      color: _color,
+      deadline: _deadline,
+    );
     setState(() => _isLoading = false);
-    if (ok && mounted) context.pop();
+    if (!mounted) return;
+    if (ok) {
+      context.pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'Failed to create goal. Please try again.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override

@@ -89,6 +89,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
                   )
+                else if (provider.error != null)
+                  SliverFillRemaining(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.cloud_off_rounded,
+                              size: 48, color: AppColors.muted),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Could not load transactions',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            provider.error!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                                fontSize: 12, color: AppColors.muted),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: _loadForMonth,
+                            child: Text('Retry',
+                                style: GoogleFonts.inter(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 else if (filtered.isEmpty)
                   SliverFillRemaining(
                     child: Center(

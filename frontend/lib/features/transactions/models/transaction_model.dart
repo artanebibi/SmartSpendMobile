@@ -22,16 +22,18 @@ class TransactionModel {
 
   factory TransactionModel.fromJson(
     Map<String, dynamic> j, {
-    String categoryName = 'Other',
+    required String categoryName,
   }) =>
       TransactionModel(
-        id: (j['id'] as num).toInt(),
-        title: j['title'] ?? '',
-        price: (j['price'] as num).toDouble(),
-        dateMade: DateTime.parse(j['date_made']).toLocal(),
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        title: j['title']?.toString() ?? '',
+        price: (j['price'] as num?)?.toDouble() ?? (j['amount'] as num?)?.toDouble() ?? 0.0,
+        dateMade: j['date_made'] != null
+            ? DateTime.tryParse(j['date_made'].toString())?.toLocal() ?? DateTime.now()
+            : DateTime.now(),
         categoryId: (j['category_id'] as num?)?.toInt(),
         categoryName: categoryName,
-        type: j['type'] ?? 'Expense',
+        type: j['type']?.toString() ?? 'Expense',
       );
 
   Map<String, dynamic> toJson() => {
