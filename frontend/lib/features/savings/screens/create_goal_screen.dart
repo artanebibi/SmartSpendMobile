@@ -29,7 +29,8 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
   final _nameController = TextEditingController();
   final _targetController = TextEditingController();
   Color _color = _colorPalette[0];
-  DateTime? _deadline;
+  DateTime? _fromDate;
+  DateTime? _toDate;
   bool _isLoading = false;
 
   @override
@@ -39,32 +40,74 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     super.dispose();
   }
 
-  Future<void> _pickDeadline() async {
+  Future<void> _pickFromDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _deadline ?? now.add(const Duration(days: 30)),
-      firstDate: now,
+      initialDate: _fromDate ?? now,
+      firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 10),
     );
-    if (picked != null) setState(() => _deadline = picked);
+    if (picked != null) {
+      setState(() {
+        _fromDate = picked;
+        // If to date is before from date, reset it
+        if (_toDate != null && _toDate!.isBefore(picked)) {
+          _toDate = null;
+        }
+      });
+    }
+  }
+
+  Future<void> _pickToDate() async {
+    final now = DateTime.now();
+    final minDate = _fromDate ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _toDate ?? minDate.add(const Duration(days: 30)),
+      firstDate: minDate,
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked != null) setState(() => _toDate = picked);
+  }
+
+  void _setQuickToDate(int days) {
+    final baseDate = _fromDate ?? DateTime.now();
+    setState(() => _toDate = baseDate.add(Duration(days: days)));
   }
 
   Future<void> _create() async {
     final name = _nameController.text.trim();
     final target = double.tryParse(_targetController.text) ?? 0;
-    if (name.isEmpty || target <= 0) return;
+
+    if (name.isEmpty || target <= 0 || _toDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     final provider = context.read<SavingsProvider>();
+
+    // If fromDate is null, use today's date
+    final fromDate = _fromDate ?? DateTime.now();
+
     final ok = await provider.create(
       name: name,
+      currentAmount: 0,
       targetAmount: target,
       color: _color,
-      deadline: _deadline,
+      from: fromDate,
+      to: _toDate!,
     );
+
     setState(() => _isLoading = false);
     if (!mounted) return;
+
     if (ok) {
       context.pop();
     } else {
@@ -163,27 +206,39 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             child: Icon(Icons.track_changes_rounded, color: _color, size: 24),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name.isEmpty ? 'Goal Name' : name,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: name.isEmpty ? AppColors.muted : AppColors.darkText,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? 'Goal Name' : name,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: name.isEmpty ? AppColors.muted : AppColors.darkText,
+                  ),
                 ),
-              ),
-              Text(
-                target != null && target > 0
-                    ? '\$${target.toStringAsFixed(0)} target'
-                    : 'Set a target amount',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.muted,
+                Text(
+                  target != null && target > 0
+                      ? '\$${target.toStringAsFixed(0)} target'
+                      : 'Set a target amount',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.muted,
+                  ),
                 ),
-              ),
-            ],
+                if (_toDate != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Due ${DateFormatter.dayMonthYear(_toDate!)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
@@ -221,10 +276,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
         ),
         const SizedBox(height: 16),
 
-        _SectionLabel('DEADLINE (OPTIONAL)'),
+        _SectionLabel('START DATE (OPTIONAL)'),
         const SizedBox(height: 6),
         GestureDetector(
-          onTap: _pickDeadline,
+          onTap: _pickFromDate,
           child: Container(
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -236,12 +291,12 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             child: Row(
               children: [
                 Text(
-                  _deadline != null
-                      ? DateFormatter.dayMonthYear(_deadline!)
-                      : 'Select a date',
+                  _fromDate != null
+                      ? DateFormatter.dayMonthYear(_fromDate!)
+                      : 'Today',
                   style: GoogleFonts.inter(
                     fontSize: 14,
-                    color: _deadline != null
+                    color: _fromDate != null
                         ? AppColors.darkText
                         : AppColors.muted,
                   ),
@@ -253,12 +308,89 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+
+        _SectionLabel('TARGET DATE'),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: _pickToDate,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _toDate == null ? AppColors.error : AppColors.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  _toDate != null
+                      ? DateFormatter.dayMonthYear(_toDate!)
+                      : 'Select target date',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: _toDate != null
+                        ? AppColors.darkText
+                        : AppColors.muted,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.calendar_today_outlined,
+                    size: 16, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Quick date selection buttons
+        _buildQuickDateButtons(),
         const SizedBox(height: 20),
 
         _SectionLabel('GOAL COLOR'),
         const SizedBox(height: 10),
         _buildColorPicker(),
       ],
+    );
+  }
+
+  Widget _buildQuickDateButtons() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildQuickDateChip('2 weeks', 14),
+        _buildQuickDateChip('1 month', 30),
+        _buildQuickDateChip('3 months', 90),
+        _buildQuickDateChip('6 months', 180),
+      ],
+    );
+  }
+
+  Widget _buildQuickDateChip(String label, int days) {
+    return GestureDetector(
+      onTap: () => _setQuickToDate(days),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -323,7 +455,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             ),
             child: selected
                 ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 18)
+                color: Colors.white, size: 18)
                 : null,
           ),
         );
@@ -342,17 +474,17 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: _isLoading
             ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white))
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Colors.white))
             : Text('Create Goal',
-                style: GoogleFonts.inter(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
+            style: GoogleFonts.inter(
+                fontSize: 15, fontWeight: FontWeight.w600)),
       ),
     );
   }

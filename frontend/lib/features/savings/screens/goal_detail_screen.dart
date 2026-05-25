@@ -173,7 +173,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
   }
 
   Widget _buildProgressCard(BuildContext context, SavingModel goal) {
-    final pct = goal.percentage;
+    // Sync logic with the main card component
+    final currentProgress = goal.currentAmount ?? 0.0;
+    final target = goal.targetAmount;
+    final pct = target > 0 ? (currentProgress / target).clamp(0.0, 1.0) : 0.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -192,7 +195,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               height: 176,
               child: CustomPaint(
                 painter: _CircularProgressPainter(
-                  percentage: pct / 100,
+                  percentage: pct, // Now scales cleanly between 0.0 and 1.0
                   color: goal.color,
                 ),
                 child: Center(
@@ -200,7 +203,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${pct.toStringAsFixed(0)}%',
+                        '${(pct * 100).toStringAsFixed(0)}%',
                         style: GoogleFonts.inter(
                           fontSize: 36,
                           fontWeight: FontWeight.w800,
@@ -222,7 +225,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
             const SizedBox(height: 16),
             Text(
-              CurrencyFormatter.format(goal.amount),
+              CurrencyFormatter.format(currentProgress), // Changed from goal.amount to display current savings
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -230,7 +233,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               ),
             ),
             Text(
-              'of ${CurrencyFormatter.format(goal.targetAmount)} goal',
+              'of ${CurrencyFormatter.format(target)} goal',
               style: GoogleFonts.inter(
                   fontSize: 13, color: AppColors.muted),
             ),

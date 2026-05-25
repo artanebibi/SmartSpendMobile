@@ -193,8 +193,12 @@ class _GoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = goal.percentage;
-    final done = goal.isComplete;
+    // 1. Calculate percentage using currentAmount vs targetAmount
+    final currentProgress = goal.currentAmount ?? 0.0;
+    final target = goal.targetAmount;
+
+    final pct = target > 0 ? (currentProgress / target).clamp(0.0, 1.0) : 0.0;
+    final isDone = currentProgress >= target && target > 0;
 
     return GestureDetector(
       onTap: onTap,
@@ -248,7 +252,7 @@ class _GoalCard extends StatelessWidget {
                   ),
                 ),
                 // Done badge or percentage
-                if (done)
+                if (isDone)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
@@ -275,7 +279,7 @@ class _GoalCard extends StatelessWidget {
                   )
                 else
                   Text(
-                    '${pct.toStringAsFixed(0)}%',
+                    '${(pct * 100).toStringAsFixed(0)}%',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -289,11 +293,11 @@ class _GoalCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: pct / 100,
+                value: pct,
                 minHeight: 8,
                 backgroundColor: AppColors.lightBg,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  done ? AppColors.success : goal.color,
+                  isDone ? AppColors.success : goal.color,
                 ),
               ),
             ),
@@ -302,13 +306,13 @@ class _GoalCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '${CurrencyFormatter.format(goal.amount)} saved',
+                  '${CurrencyFormatter.format(currentProgress)} saved', // Shows liquid saved progress
                   style: GoogleFonts.inter(
                       fontSize: 11, color: AppColors.muted),
                 ),
                 const Spacer(),
                 Text(
-                  'Target ${CurrencyFormatter.format(goal.targetAmount)}',
+                  'Target ${CurrencyFormatter.format(target)}', // Shows maximum target
                   style: GoogleFonts.inter(
                       fontSize: 11, color: AppColors.muted),
                 ),

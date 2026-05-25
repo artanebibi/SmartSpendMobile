@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class SavingModel {
   final int id;
+  final double currentAmount;
   final double amount;
   final DateTime from;
   final DateTime to;
@@ -14,6 +15,7 @@ class SavingModel {
 
   const SavingModel({
     required this.id,
+    required this.currentAmount,
     required this.amount,
     required this.from,
     required this.to,
@@ -31,6 +33,7 @@ class SavingModel {
 
   factory SavingModel.fromJson(Map<String, dynamic> j) => SavingModel(
         id: (j['id'] as num).toInt(),
+        currentAmount: (j['current_amount'] as num).toDouble(),
         amount: (j['amount'] as num).toDouble(),
         from: DateTime.parse(j['from']).toLocal(),
         to: DateTime.parse(j['to']).toLocal(),
@@ -38,6 +41,7 @@ class SavingModel {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'currentAmount': currentAmount,
         'amount': amount,
         'from': from.toUtc().toIso8601String(),
         'to': to.toUtc().toIso8601String(),
@@ -53,6 +57,7 @@ class SavingModel {
   }) =>
       SavingModel(
         id: id ?? this.id,
+        currentAmount: currentAmount?? this.amount,
         amount: amount ?? this.amount,
         from: from,
         to: to,
