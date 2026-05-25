@@ -145,6 +145,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState(() => _saving = false);
     if (!mounted) return;
     if (ok) {
+      context.read<AuthProvider>().refreshBalances();
       context.pop();
     } else {
       final err = context.read<TransactionProvider>().error;

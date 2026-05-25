@@ -8,6 +8,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/category_dot.dart';
 import '../models/transaction_model.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
 
@@ -66,9 +67,11 @@ class _DetailBody extends StatelessWidget {
       ),
     );
     if (confirmed == true && context.mounted) {
+      final authProvider = context.read<AuthProvider>();
       final ok = await context.read<TransactionProvider>().delete(tx.id);
       if (context.mounted) {
         if (ok) {
+          authProvider.refreshBalances();
           context.pop();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

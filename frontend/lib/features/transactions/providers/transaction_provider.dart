@@ -147,8 +147,7 @@ class TransactionProvider extends ChangeNotifier {
   Future<bool> delete(int id) async {
     try {
       await _dio.delete(ApiEndpoints.transactionById(id));
-      _transactions.removeWhere((t) => t.id == id);
-      notifyListeners();
+      await load();
       return true;
     } catch (e) {
       _error = e.toString();

@@ -153,9 +153,8 @@ class SavingsProvider extends ChangeNotifier {
   Future<bool> delete(int id) async {
     try {
       await _dio.delete(ApiEndpoints.savingById(id));
-      _savings.removeWhere((s) => s.id == id);
       await _deleteMeta(id);
-      notifyListeners();
+      await load();
       return true;
     } catch (e) {
       _error = e.toString();
