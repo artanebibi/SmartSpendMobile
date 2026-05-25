@@ -37,7 +37,8 @@ class CurrencyFormatter {
       _symbols[code.toUpperCase()] ?? '$code ';
 
   static String format(double amount, {String symbol = '\$'}) {
-    final formatted = NumberFormat('#,##0.00').format(amount.abs());
+    final formatted =
+        NumberFormat('#,##0.00').format(amount.abs()).replaceAll(',', ' ');
     return '$symbol$formatted';
   }
 

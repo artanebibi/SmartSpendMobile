@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -65,6 +66,7 @@ class _StatsScreenState extends State<StatsScreen> {
     final stats = context.watch<StatsProvider>();
     final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
+    final exchangeSvc = context.watch<ExchangeRateService>();
 
     return Scaffold(
       backgroundColor: AppColors.lightBg,
@@ -116,11 +118,11 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
               )
             else if (_tab == 0)
-              SliverToBoxAdapter(child: _buildOverview(stats, symbol))
+              SliverToBoxAdapter(child: _buildOverview(stats, symbol, exchangeSvc, currency))
             else if (_tab == 1)
-              SliverToBoxAdapter(child: _buildMonthly(stats, symbol))
+              SliverToBoxAdapter(child: _buildMonthly(stats, symbol, exchangeSvc, currency))
             else
-              SliverToBoxAdapter(child: _buildCategories(stats, symbol)),
+              SliverToBoxAdapter(child: _buildCategories(stats, symbol, exchangeSvc, currency)),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -218,7 +220,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Overview Tab ────────────────────────────────────────────────────────────
 
-  Widget _buildOverview(StatsProvider stats, String symbol) {
+  Widget _buildOverview(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final daysInMonth =
         DateTime(_month.year, _month.month + 1, 0).day.toDouble();
     final avgPerDay = daysInMonth > 0 ? stats.totalExpenses / daysInMonth : 0;
@@ -239,21 +242,27 @@ class _StatsScreenState extends State<StatsScreen> {
             children: [
               _StatCard(
                 label: 'Total Income',
-                value: CurrencyFormatter.format(stats.totalIncome, symbol: symbol),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(stats.totalIncome, currency),
+                    symbol: symbol),
                 valueColor: AppColors.success,
                 sub: '↑ This month',
                 subColor: AppColors.success,
               ),
               _StatCard(
                 label: 'Total Expenses',
-                value: CurrencyFormatter.format(stats.totalExpenses, symbol: symbol),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(stats.totalExpenses, currency),
+                    symbol: symbol),
                 valueColor: AppColors.error,
                 sub: '↓ This month',
                 subColor: AppColors.error,
               ),
               _StatCard(
                 label: 'Net Savings',
-                value: CurrencyFormatter.format(stats.netSavings, symbol: symbol),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(stats.netSavings, currency),
+                    symbol: symbol),
                 valueColor: stats.netSavings >= 0
                     ? AppColors.success
                     : AppColors.error,
@@ -264,7 +273,9 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
               _StatCard(
                 label: 'Avg / Day',
-                value: CurrencyFormatter.format(avgPerDay.toDouble(), symbol: symbol),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(avgPerDay.toDouble(), currency),
+                    symbol: symbol),
                 valueColor: AppColors.darkText,
                 sub: 'Expenses',
                 subColor: AppColors.muted,
@@ -276,7 +287,7 @@ class _StatsScreenState extends State<StatsScreen> {
         const SizedBox(height: 16),
         _buildPieCard(stats),
         const SizedBox(height: 16),
-        _buildBarCard(stats, symbol),
+        _buildBarCard(stats, symbol, exchangeSvc, currency),
       ],
     );
   }
@@ -380,7 +391,8 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _buildBarCard(StatsProvider stats, String symbol) {
+  Widget _buildBarCard(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final hasData = stats.monthlyData.isNotEmpty;
 
     return Padding(
@@ -408,7 +420,7 @@ class _StatsScreenState extends State<StatsScreen> {
             else ...[
               SizedBox(
                 height: 140,
-                child: _buildBarChart(stats, symbol, showIncome: false),
+                child: _buildBarChart(stats, symbol, exchangeSvc, currency, showIncome: false),
               ),
               const SizedBox(height: 12),
               // Legend
@@ -430,7 +442,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Monthly Tab ─────────────────────────────────────────────────────────────
 
-  Widget _buildMonthly(StatsProvider stats, String symbol) {
+  Widget _buildMonthly(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final hasData = stats.monthlyData.isNotEmpty;
 
     return Padding(
@@ -464,7 +477,7 @@ class _StatsScreenState extends State<StatsScreen> {
             else
               SizedBox(
                 height: 220,
-                child: _buildBarChart(stats, symbol, showIncome: false),
+                child: _buildBarChart(stats, symbol, exchangeSvc, currency, showIncome: false),
               ),
           ],
         ),
@@ -474,7 +487,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Categories Tab ───────────────────────────────────────────────────────────
 
-  Widget _buildCategories(StatsProvider stats, String symbol) {
+  Widget _buildCategories(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     if (stats.pieData.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(20),
@@ -530,7 +544,9 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      CurrencyFormatter.format(slice.amount, symbol: symbol),
+                      CurrencyFormatter.format(
+                          exchangeSvc.convertFromMkd(slice.amount, currency),
+                          symbol: symbol),
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppColors.muted,
@@ -558,7 +574,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Shared bar chart builder ─────────────────────────────────────────────────
 
-  Widget _buildBarChart(StatsProvider stats, String symbol, {required bool showIncome}) {
+  Widget _buildBarChart(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency,
+      {required bool showIncome}) {
     final data = stats.monthlyData;
     final maxY = data.fold(0.0, (m, b) => m > b.expense ? m : b.expense);
     final yInterval = maxY > 0 ? (maxY / 4).ceilToDouble() : 500;
@@ -639,7 +657,9 @@ class _StatsScreenState extends State<StatsScreen> {
             getTooltipColor: (_) => AppColors.darkText,
             tooltipRoundedRadius: 8,
             getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-              CurrencyFormatter.format(rod.toY, symbol: symbol),
+              CurrencyFormatter.format(
+                  exchangeSvc.convertFromMkd(rod.toY, currency),
+                  symbol: symbol),
               GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,

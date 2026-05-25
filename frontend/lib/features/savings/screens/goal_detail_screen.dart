@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -75,9 +76,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (confirmed == true && mounted) {
       final amount = double.tryParse(controller.text) ?? 0;
       if (amount <= 0) return;
-      await context
-          .read<SavingsProvider>()
-          .addContribution(widget.id, amount);
+      // Capture providers before async gaps
+      final currency =
+          context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+      final exchangeSvc = context.read<ExchangeRateService>();
+      final savingsProvider = context.read<SavingsProvider>();
+      final mkdAmount =
+          await exchangeSvc.exchangeForDbStore(amount, currency);
+      await savingsProvider.addContribution(widget.id, mkdAmount);
       await _loadContributions();
     }
   }
@@ -89,6 +95,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         provider.savings.where((s) => s.id == widget.id).firstOrNull;
     final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
+    final exchangeSvc = context.watch<ExchangeRateService>();
 
     if (goal == null) {
       return Scaffold(
@@ -110,7 +117,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             SliverToBoxAdapter(child: _buildHeader(context, goal)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildProgressCard(context, goal, symbol)),
+                child: _buildProgressCard(context, goal, symbol, exchangeSvc, currency)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
                 child: _buildAddButton(context, goal, symbol)),
@@ -119,7 +126,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               SliverToBoxAdapter(child: _buildHistoryHeader()),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(
-                  child: _buildContributionList(symbol)),
+                  child: _buildContributionList(symbol, exchangeSvc, currency)),
             ],
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
@@ -175,7 +182,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildProgressCard(BuildContext context, SavingModel goal, String symbol) {
+  Widget _buildProgressCard(BuildContext context, SavingModel goal, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final pct = goal.percentage;
 
     return Padding(
@@ -225,7 +233,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
             const SizedBox(height: 16),
             Text(
-              CurrencyFormatter.format(goal.amount, symbol: symbol),
+              CurrencyFormatter.format(
+                  exchangeSvc.convertFromMkd(goal.amount, currency),
+                  symbol: symbol),
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -233,7 +243,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               ),
             ),
             Text(
-              'of ${CurrencyFormatter.format(goal.targetAmount, symbol: symbol)} goal',
+              'of ${CurrencyFormatter.format(exchangeSvc.convertFromMkd(goal.targetAmount, currency), symbol: symbol)} goal',
               style: GoogleFonts.inter(
                   fontSize: 13, color: AppColors.muted),
             ),
@@ -302,7 +312,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildContributionList(String symbol) {
+  Widget _buildContributionList(String symbol, ExchangeRateService exchangeSvc,
+      String currency) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -355,7 +366,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     ),
                   ),
                   Text(
-                    '+${CurrencyFormatter.format(c.amount, symbol: symbol)}',
+                    '+${CurrencyFormatter.format(exchangeSvc.convertFromMkd(c.amount, currency), symbol: symbol)}',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

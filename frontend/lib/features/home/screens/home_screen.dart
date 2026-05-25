@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../features/auth/providers/auth_provider.dart';
@@ -37,20 +38,25 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final txProvider = context.watch<TransactionProvider>();
+    final exchangeSvc = context.watch<ExchangeRateService>();
     final user = auth.user;
-    final balance = user?.balance ?? 0.0;
-    final savingGoal = user?.monthlySavingGoal ?? 0.0;
     final currency = user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
 
-    // Compute income and expense from recent transactions
+    // All amounts from API are in MKD — convert to user currency for display
+    final balance =
+        exchangeSvc.convertFromMkd(user?.balance ?? 0.0, currency);
+    final savingGoal =
+        exchangeSvc.convertFromMkd(user?.monthlySavingGoal ?? 0.0, currency);
+
+    // Compute income and expense from recent transactions (prices are in MKD)
     final txs = txProvider.transactions;
-    final totalIncome = txs
-        .where((t) => t.isIncome)
-        .fold(0.0, (s, t) => s + t.price);
-    final totalExpense = txs
-        .where((t) => t.isExpense)
-        .fold(0.0, (s, t) => s + t.price);
+    final totalIncome = exchangeSvc.convertFromMkd(
+        txs.where((t) => t.isIncome).fold(0.0, (s, t) => s + t.price),
+        currency);
+    final totalExpense = exchangeSvc.convertFromMkd(
+        txs.where((t) => t.isExpense).fold(0.0, (s, t) => s + t.price),
+        currency);
 
     final (intPart, decPart) = CurrencyFormatter.splitAmount(balance);
 

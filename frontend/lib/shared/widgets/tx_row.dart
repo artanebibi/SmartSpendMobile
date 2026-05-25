@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../core/services/exchange_rate_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
@@ -23,8 +24,11 @@ class TxRow extends StatelessWidget {
     final isIncome = transaction.isIncome;
     final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
+    final displayPrice = context
+        .watch<ExchangeRateService>()
+        .convertFromMkd(transaction.price, currency);
     final amountText =
-        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.price, symbol: symbol)}';
+        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(displayPrice, symbol: symbol)}';
 
     return InkWell(
       onTap: onTap,

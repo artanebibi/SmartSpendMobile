@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../transactions/providers/transaction_provider.dart';
@@ -360,6 +361,9 @@ class ProfileScreen extends StatelessWidget {
                               context
                                   .read<AuthProvider>()
                                   .updatePreferredCurrency(c);
+                              context
+                                  .read<ExchangeRateService>()
+                                  .prefetchRate(c);
                             }
                             if (ctx.mounted) Navigator.pop(ctx);
                           },
