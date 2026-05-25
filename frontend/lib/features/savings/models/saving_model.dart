@@ -26,7 +26,7 @@ class SavingModel {
   });
 
   double get percentage => targetAmount > 0
-      ? (amount / targetAmount * 100).clamp(0, 100)
+      ? (currentAmount / targetAmount * 100).clamp(0, 100)
       : 0;
 
   bool get isComplete => percentage >= 100;

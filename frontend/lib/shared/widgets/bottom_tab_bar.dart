@@ -9,10 +9,12 @@ class AppBottomTabBar extends StatelessWidget {
   final Widget child;
   final String location;
 
-  static const _tabs = [
+  static const _leftTabs = [
     _Tab(icon: Icons.home_rounded, label: 'HOME', path: '/home/dashboard'),
-    _Tab(icon: Icons.credit_card_rounded, label: 'TRANSFERS', path: '/home/transactions'),
     _Tab(icon: Icons.bar_chart_rounded, label: 'STATS', path: '/home/stats'),
+  ];
+
+  static const _rightTabs = [
     _Tab(icon: Icons.track_changes_rounded, label: 'SAVINGS', path: '/home/savings'),
     _Tab(icon: Icons.person_rounded, label: 'PROFILE', path: '/home/profile'),
   ];
@@ -30,38 +32,57 @@ class AppBottomTabBar extends StatelessWidget {
           child: SizedBox(
             height: 60,
             child: Row(
-              children: _tabs.map((tab) {
-                final active = location.startsWith(tab.path);
-                return Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => context.go(tab.path),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          tab.icon,
-                          size: 22,
-                          color: active ? AppColors.primary : AppColors.muted,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          tab.label,
-                          style: GoogleFonts.inter(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: active ? AppColors.primary : AppColors.muted,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+              children: [
+                ..._leftTabs.map((tab) {
+                  final active = location.startsWith(tab.path);
+                  return Expanded(child: _buildTab(context, tab, active));
+                }),
+                _buildScanButton(context),
+                ..._rightTabs.map((tab) {
+                  final active = location.startsWith(tab.path);
+                  return Expanded(child: _buildTab(context, tab, active));
+                }),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTab(BuildContext context, _Tab tab, bool active) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.go(tab.path),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(tab.icon, size: 22, color: active ? AppColors.primary : AppColors.muted),
+          const SizedBox(height: 3),
+          Text(
+            tab.label,
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              color: active ? AppColors.primary : AppColors.muted,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScanButton(BuildContext context) {
+    return Expanded(
+      child: _buildTab(
+        context,
+        const _Tab(
+          icon: Icons.camera_alt_rounded,
+          label: 'SCAN',
+          path: '/home/transactions/scan',
+        ),
+        false,
       ),
     );
   }

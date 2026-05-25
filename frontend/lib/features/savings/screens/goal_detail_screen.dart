@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/saving_model.dart';
 import '../providers/savings_provider.dart';
 
@@ -34,7 +36,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (mounted) setState(() => _contributions = list);
   }
 
-  Future<void> _showAddContribution(SavingModel goal) async {
+  Future<void> _showAddContribution(SavingModel goal, String symbol) async {
     final controller = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -47,7 +49,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               const TextInputType.numberWithOptions(decimal: true),
           autofocus: true,
           decoration: InputDecoration(
-            prefixText: '\$ ',
+            prefixText: '$symbol ',
             hintText: '0.00',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -74,9 +76,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (confirmed == true && mounted) {
       final amount = double.tryParse(controller.text) ?? 0;
       if (amount <= 0) return;
-      await context
-          .read<SavingsProvider>()
-          .addContribution(widget.id, amount);
+      // Capture providers before async gaps
+      final currency =
+          context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+      final exchangeSvc = context.read<ExchangeRateService>();
+      final savingsProvider = context.read<SavingsProvider>();
+      final mkdAmount =
+          await exchangeSvc.exchangeForDbStore(amount, currency);
+      await savingsProvider.addContribution(widget.id, mkdAmount);
       await _loadContributions();
     }
   }
@@ -86,6 +93,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final provider = context.watch<SavingsProvider>();
     final goal =
         provider.savings.where((s) => s.id == widget.id).firstOrNull;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final exchangeSvc = context.watch<ExchangeRateService>();
 
     if (goal == null) {
       return Scaffold(
@@ -107,16 +117,16 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             SliverToBoxAdapter(child: _buildHeader(context, goal)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildProgressCard(context, goal)),
+                child: _buildProgressCard(context, goal, symbol, exchangeSvc, currency)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildAddButton(context, goal)),
+                child: _buildAddButton(context, goal, symbol)),
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
             if (_contributions.isNotEmpty) ...[
               SliverToBoxAdapter(child: _buildHistoryHeader()),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(
-                  child: _buildContributionList()),
+                  child: _buildContributionList(symbol, exchangeSvc, currency)),
             ],
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
@@ -172,11 +182,9 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildProgressCard(BuildContext context, SavingModel goal) {
-    // Sync logic with the main card component
-    final currentProgress = goal.currentAmount ?? 0.0;
-    final target = goal.targetAmount;
-    final pct = target > 0 ? (currentProgress / target).clamp(0.0, 1.0) : 0.0;
+  Widget _buildProgressCard(BuildContext context, SavingModel goal, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
+    final pct = goal.percentage;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -189,13 +197,12 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
         ),
         child: Column(
           children: [
-            // Circular progress
             SizedBox(
               width: 176,
               height: 176,
               child: CustomPaint(
                 painter: _CircularProgressPainter(
-                  percentage: pct, // Now scales cleanly between 0.0 and 1.0
+                  percentage: pct / 100,
                   color: goal.color,
                 ),
                 child: Center(
@@ -203,7 +210,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${(pct * 100).toStringAsFixed(0)}%',
+                        '${pct.toStringAsFixed(0)}%',
                         style: GoogleFonts.inter(
                           fontSize: 36,
                           fontWeight: FontWeight.w800,
@@ -222,10 +229,11 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
             Text(
-              CurrencyFormatter.format(currentProgress), // Changed from goal.amount to display current savings
+              CurrencyFormatter.format(
+                  exchangeSvc.convertFromMkd(goal.amount, currency),
+                  symbol: symbol),
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -233,11 +241,10 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               ),
             ),
             Text(
-              'of ${CurrencyFormatter.format(target)} goal',
+              'of ${CurrencyFormatter.format(exchangeSvc.convertFromMkd(goal.targetAmount, currency), symbol: symbol)} goal',
               style: GoogleFonts.inter(
                   fontSize: 13, color: AppColors.muted),
             ),
-
             if (goal.deadline != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -263,14 +270,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildAddButton(BuildContext context, SavingModel goal) {
+  Widget _buildAddButton(BuildContext context, SavingModel goal, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SizedBox(
         width: double.infinity,
         height: 56,
         child: ElevatedButton(
-          onPressed: () => _showAddContribution(goal),
+          onPressed: () => _showAddContribution(goal, symbol),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -302,7 +309,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildContributionList() {
+  Widget _buildContributionList(String symbol, ExchangeRateService exchangeSvc,
+      String currency) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -355,7 +363,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     ),
                   ),
                   Text(
-                    '+${CurrencyFormatter.format(c.amount)}',
+                    '+${CurrencyFormatter.format(exchangeSvc.convertFromMkd(c.amount, currency), symbol: symbol)}',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

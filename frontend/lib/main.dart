@@ -30,6 +30,7 @@ import 'features/profile/providers/profile_provider.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'shared/widgets/bottom_tab_bar.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/services/exchange_rate_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,12 +78,23 @@ class _SmartSpendAppState extends State<SmartSpendApp> {
         ChangeNotifierProvider(create: (_) => StatsProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
+        ChangeNotifierProvider(create: (_) => ExchangeRateService()),
       ],
-      child: MaterialApp.router(
-        title: 'SmartSpend',
-        theme: AppTheme.light,
-        routerConfig: _router,
-        debugShowCheckedModeBanner: false,
+      child: Consumer<AuthProvider>(
+        builder: (ctx, auth, child) {
+          if (auth.user != null) {
+            ctx
+                .read<ExchangeRateService>()
+                .prefetchRate(auth.user!.preferredCurrency);
+          }
+          return child!;
+        },
+        child: MaterialApp.router(
+          title: 'SmartSpend',
+          theme: AppTheme.light,
+          routerConfig: _router,
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }

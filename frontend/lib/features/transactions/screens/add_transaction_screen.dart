@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
+import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/category_dot.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
@@ -57,6 +60,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (mounted && _selectedCategoryId == null && provider.categories.isNotEmpty) {
         _selectCategory(provider.categories.first);
       }
+      // In edit mode: initial price is stored as MKD — convert to user currency for display
+      final tx = widget.initial;
+      if (tx != null && mounted) {
+        final svc = context.read<ExchangeRateService>();
+        final currency =
+            context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+        await svc.prefetchRate(currency);
+        if (mounted) {
+          setState(() {
+            _amount =
+                svc.convertFromMkd(tx.price, currency).toStringAsFixed(2);
+          });
+        }
+      }
     });
   }
 
@@ -97,12 +114,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ? (_selectedCategoryName ?? 'Transaction')
         : _titleController.text.trim();
 
+    // Convert from user's preferred currency to MKD before storing
+    final currency =
+        context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final mkdPrice = await context
+        .read<ExchangeRateService>()
+        .exchangeForDbStore(price, currency);
+
     bool ok;
     if (widget.initial != null) {
       ok = await provider.update(TransactionModel(
         id: widget.initial!.id,
         title: title,
-        price: price,
+        price: mkdPrice,
         dateMade: widget.initial!.dateMade,
         categoryId: _selectedCategoryId,
         categoryName: _selectedCategoryName ?? 'Other',
@@ -111,7 +135,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     } else {
       ok = await provider.add(
         title: title,
-        price: price,
+        price: mkdPrice,
         type: _type,
         categoryId: _selectedCategoryId,
         dateMade: DateTime.now(),
@@ -251,6 +275,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _buildAmountDisplay() {
+    final symbol = CurrencyFormatter.symbolFor(
+        context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD');
     return Center(
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -259,7 +285,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              '\$',
+              symbol,
               style: GoogleFonts.inter(
                 fontSize: 30,
                 fontWeight: FontWeight.w700,

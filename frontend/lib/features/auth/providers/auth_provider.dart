@@ -134,6 +134,12 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(false);
   }
 
+  void updatePreferredCurrency(String currency) {
+    if (_user == null) return;
+    _user = _user!.copyWith(preferredCurrency: currency);
+    notifyListeners();
+  }
+
   Future<void> refreshBalances() async {
     if (_user == null) return;
     try {

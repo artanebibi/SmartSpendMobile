@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/saving_model.dart';
 import '../providers/savings_provider.dart';
 
@@ -28,6 +30,9 @@ class _SavingsScreenState extends State<SavingsScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SavingsProvider>();
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final exchangeSvc = context.watch<ExchangeRateService>();
 
     return Scaffold(
       backgroundColor: AppColors.lightBg,
@@ -42,7 +47,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
-              SliverToBoxAdapter(child: _buildTotalCard(provider)),
+              SliverToBoxAdapter(child: _buildTotalCard(provider, symbol, exchangeSvc, currency)),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (provider.savings.isEmpty)
                 SliverFillRemaining(
@@ -62,6 +67,9 @@ class _SavingsScreenState extends State<SavingsScreen> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _GoalCard(
                           goal: provider.savings[i],
+                          symbol: symbol,
+                          exchangeSvc: exchangeSvc,
+                          currency: currency,
                           onTap: () => context
                               .push('/home/savings/${provider.savings[i].id}'),
                         ),
@@ -109,9 +117,10 @@ class _SavingsScreenState extends State<SavingsScreen> {
     );
   }
 
-  Widget _buildTotalCard(SavingsProvider provider) {
-    final saved = provider.totalSaved;
-    final target = provider.totalTarget;
+  Widget _buildTotalCard(SavingsProvider provider, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
+    final saved = exchangeSvc.convertFromMkd(provider.totalSaved, currency);
+    final target = exchangeSvc.convertFromMkd(provider.totalTarget, currency);
     final pct = target > 0 ? (saved / target).clamp(0.0, 1.0) : 0.0;
     final pctLabel = '${(pct * 100).toStringAsFixed(0)}%';
 
@@ -140,7 +149,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  CurrencyFormatter.format(saved),
+                  CurrencyFormatter.format(saved, symbol: symbol),
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -151,7 +160,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
-                    '/ ${CurrencyFormatter.format(target)}',
+                    '/ ${CurrencyFormatter.format(target, symbol: symbol)}',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: Colors.white.withValues(alpha: 0.55),
@@ -187,8 +196,17 @@ class _SavingsScreenState extends State<SavingsScreen> {
 }
 
 class _GoalCard extends StatelessWidget {
-  const _GoalCard({required this.goal, required this.onTap});
+  const _GoalCard({
+    required this.goal,
+    required this.symbol,
+    required this.exchangeSvc,
+    required this.currency,
+    required this.onTap,
+  });
   final SavingModel goal;
+  final String symbol;
+  final ExchangeRateService exchangeSvc;
+  final String currency;
   final VoidCallback onTap;
 
   @override
@@ -306,13 +324,13 @@ class _GoalCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '${CurrencyFormatter.format(currentProgress)} saved', // Shows liquid saved progress
+                  '${CurrencyFormatter.format(exchangeSvc.convertFromMkd(currentProgress, currency), symbol: symbol)} saved',
                   style: GoogleFonts.inter(
                       fontSize: 11, color: AppColors.muted),
                 ),
                 const Spacer(),
                 Text(
-                  'Target ${CurrencyFormatter.format(target)}', // Shows maximum target
+                  'Target ${CurrencyFormatter.format(exchangeSvc.convertFromMkd(target, currency), symbol: symbol)}',
                   style: GoogleFonts.inter(
                       fontSize: 11, color: AppColors.muted),
                 ),

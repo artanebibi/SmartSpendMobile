@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../transactions/providers/transaction_provider.dart';
@@ -326,37 +327,53 @@ class ProfileScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Select Currency',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
-              ),
+      builder: (ctx) {
+        bool updating = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Currency',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.darkText,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...currencies.map(
+                  (c) => ListTile(
+                    title: Text(c,
+                        style: GoogleFonts.inter(
+                            fontSize: 14, fontWeight: FontWeight.w500)),
+                    onTap: updating
+                        ? null
+                        : () async {
+                            setSheetState(() => updating = true);
+                            final ok = await ctx
+                                .read<ProfileProvider>()
+                                .updateCurrency(c);
+                            if (ok && context.mounted) {
+                              context
+                                  .read<AuthProvider>()
+                                  .updatePreferredCurrency(c);
+                              context
+                                  .read<ExchangeRateService>()
+                                  .prefetchRate(c);
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            ...currencies.map(
-              (c) => ListTile(
-                title: Text(c,
-                    style: GoogleFonts.inter(
-                        fontSize: 14, fontWeight: FontWeight.w500)),
-                onTap: () async {
-                  await context
-                      .read<ProfileProvider>()
-                      .updateCurrency(c);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

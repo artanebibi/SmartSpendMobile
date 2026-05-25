@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/savings_provider.dart';
 
 const _colorPalette = [
@@ -91,15 +94,19 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     }
 
     setState(() => _isLoading = true);
+
+    // Capture providers before async gap
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final exchangeSvc = context.read<ExchangeRateService>();
     final provider = context.read<SavingsProvider>();
 
-    // If fromDate is null, use today's date
+    final mkdTarget = await exchangeSvc.exchangeForDbStore(target, currency);
     final fromDate = _fromDate ?? DateTime.now();
 
     final ok = await provider.create(
       name: name,
       currentAmount: 0,
-      targetAmount: target,
+      targetAmount: mkdTarget,
       color: _color,
       from: fromDate,
       to: _toDate!,
@@ -122,6 +129,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+
     return Scaffold(
       backgroundColor: AppColors.lightBg,
       body: SafeArea(
@@ -135,9 +145,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
-                    _buildPreviewCard(),
+                    _buildPreviewCard(symbol),
                     const SizedBox(height: 24),
-                    _buildForm(),
+                    _buildForm(symbol),
                     const SizedBox(height: 24),
                     _buildCreateButton(),
                     const SizedBox(height: 24),
@@ -184,7 +194,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
-  Widget _buildPreviewCard() {
+  Widget _buildPreviewCard(String symbol) {
     final name = _nameController.text.trim();
     final target = double.tryParse(_targetController.text);
 
@@ -220,7 +230,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                 ),
                 Text(
                   target != null && target > 0
-                      ? '\$${target.toStringAsFixed(0)} target'
+                      ? '$symbol${target.toStringAsFixed(0)} target'
                       : 'Set a target amount',
                   style: GoogleFonts.inter(
                     fontSize: 12,
@@ -245,7 +255,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(String symbol) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -264,14 +274,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           controller: _targetController,
           hint: '0.00',
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          prefix: Padding(
-            padding: const EdgeInsets.only(left: 14, right: 6),
-            child: Text('\$',
-                style: GoogleFonts.inter(
-                    fontSize: 15,
-                    color: AppColors.muted,
-                    fontWeight: FontWeight.w500)),
-          ),
+          prefixText: symbol,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
@@ -398,7 +401,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     required TextEditingController controller,
     required String hint,
     TextInputType? keyboardType,
-    Widget? prefix,
+    String? prefixText,
     ValueChanged<String>? onChanged,
   }) {
     return TextField(
@@ -409,12 +412,12 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
-        prefixIcon: prefix,
+        prefixText: prefixText,
+        prefixStyle: GoogleFonts.inter(
+            fontSize: 15, color: AppColors.muted, fontWeight: FontWeight.w500),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: prefix != null
-            ? const EdgeInsets.symmetric(vertical: 14)
-            : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
