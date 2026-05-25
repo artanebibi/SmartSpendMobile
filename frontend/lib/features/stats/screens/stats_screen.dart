@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -69,7 +70,7 @@ class _StatsScreenState extends State<StatsScreen> {
     final exchangeSvc = context.watch<ExchangeRateService>();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -95,7 +96,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         'Could not load statistics',
                         style: GoogleFonts.inter(
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -140,7 +141,7 @@ class _StatsScreenState extends State<StatsScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -150,9 +151,9 @@ class _StatsScreenState extends State<StatsScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -162,7 +163,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.darkText,
+                      color: context.colors.text,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -184,7 +185,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -300,7 +301,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -364,7 +365,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                   e.value.category,
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
-                                    color: AppColors.darkText,
+                                    color: context.colors.text,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -374,7 +375,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.darkText,
+                                  color: context.colors.text,
                                 ),
                               ),
                             ],
@@ -400,7 +401,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -451,7 +452,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -530,7 +531,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                     ),
@@ -539,7 +540,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.darkText,
+                        color: context.colors.text,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -560,7 +561,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: LinearProgressIndicator(
                     value: pct.clamp(0, 1),
                     minHeight: 6,
-                    backgroundColor: AppColors.lightBg,
+                    backgroundColor: context.colors.bg,
                     valueColor: AlwaysStoppedAnimation<Color>(color),
                   ),
                 ),
@@ -654,7 +655,7 @@ class _StatsScreenState extends State<StatsScreen> {
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => AppColors.darkText,
+            getTooltipColor: (_) => context.colors.text,
             tooltipRoundedRadius: 8,
             getTooltipItem: (group, _, rod, __) => BarTooltipItem(
               CurrencyFormatter.format(
@@ -707,7 +708,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(

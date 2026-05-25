@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../shared/widgets/category_dot.dart';
@@ -161,7 +162,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -210,12 +211,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.close_rounded,
-                  size: 18, color: AppColors.darkText),
+              child: Icon(Icons.close_rounded,
+                  size: 18, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -224,7 +225,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -236,7 +237,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -371,10 +372,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             decoration: BoxDecoration(
-              color: selected ? AppColors.secondaryBg : Colors.white,
+              color: selected ? context.colors.secondaryBg : context.colors.card,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: selected ? AppColors.primary : AppColors.border,
+                color: selected ? AppColors.primary : context.colors.border,
                 width: selected ? 1.5 : 1,
               ),
             ),
@@ -419,22 +420,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         const SizedBox(height: 10),
         TextField(
           controller: _titleController,
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+          style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
             hintText: 'Title (e.g. Grocery run, Netflix...)',
             hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: context.colors.card,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: context.colors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: context.colors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -450,21 +451,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildNoteInput() {
     return TextField(
       controller: _noteController,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
       decoration: InputDecoration(
         hintText: 'Add a note...',
         hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.colors.card,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -531,19 +532,19 @@ class _NumKeyState extends State<_NumKey> {
         duration: const Duration(milliseconds: 80),
         height: 56,
         decoration: BoxDecoration(
-          color: _pressed ? AppColors.secondaryBg : Colors.white,
+          color: _pressed ? context.colors.secondaryBg : context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Center(
           child: widget.label == '⌫'
-              ? const Icon(Icons.backspace_outlined,
-                  size: 20, color: AppColors.darkText)
+              ? Icon(Icons.backspace_outlined,
+                  size: 20, color: context.colors.text)
               : Text(
                   widget.label,
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                 ),
         ),

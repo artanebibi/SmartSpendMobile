@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 
 class AppBottomTabBar extends StatelessWidget {
   const AppBottomTabBar({super.key, required this.child, required this.location});
@@ -24,9 +25,9 @@ class AppBottomTabBar extends StatelessWidget {
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: AppColors.border)),
+        decoration: BoxDecoration(
+          color: context.colors.card,
+          border: Border(top: BorderSide(color: context.colors.border)),
         ),
         child: SafeArea(
           child: SizedBox(

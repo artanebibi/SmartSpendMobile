@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../shared/widgets/app_button.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -101,10 +102,11 @@ class WelcomeScreen extends StatelessWidget {
               ),
 
               // Bottom white card
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+              Builder(
+                builder: (context) => Container(
+                decoration: BoxDecoration(
+                  color: context.colors.card,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
                   boxShadow: [
                     BoxShadow(
                       color: Color(0x14000000),
@@ -147,6 +149,7 @@ class WelcomeScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                   ],
                 ),
+              ),
               ),
             ],
           ),

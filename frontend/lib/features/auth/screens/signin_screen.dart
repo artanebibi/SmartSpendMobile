@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../providers/auth_provider.dart';
 
 const _googleLogoSvg = '''
@@ -23,7 +24,7 @@ class SignInScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -37,12 +38,12 @@ class SignInScreen extends StatelessWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.colors.card,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.colors.border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 16, color: AppColors.darkText),
+                      child: Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 16, color: context.colors.text),
                     ),
                   ),
                 ],
@@ -59,7 +60,7 @@ class SignInScreen extends StatelessWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppColors.secondaryBg,
+                        color: context.colors.secondaryBg,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
@@ -74,7 +75,7 @@ class SignInScreen extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.darkText,
+                        color: context.colors.text,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -93,7 +94,10 @@ class SignInScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFEF2F2),
+                          color: Color.alphaBlend(
+                            AppColors.error.withValues(alpha: 0.12),
+                            context.colors.card,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -116,9 +120,9 @@ class SignInScreen extends StatelessWidget {
                       isLoading: auth.isLoading,
                       icon: SvgPicture.string(_googleLogoSvg, width: 22, height: 22),
                       label: 'Continue with Google',
-                      bgColor: Colors.white,
-                      textColor: AppColors.darkText,
-                      borderColor: AppColors.border,
+                      bgColor: context.colors.card,
+                      textColor: context.colors.text,
+                      borderColor: context.colors.border,
                     ),
                     const SizedBox(height: 12),
 
@@ -134,8 +138,8 @@ class SignInScreen extends StatelessWidget {
                       icon: const Icon(Icons.apple_rounded,
                           size: 24, color: Colors.white),
                       label: 'Continue with Apple',
-                      bgColor: AppColors.darkText,
-                      textColor: Colors.white,
+                      bgColor: context.colors.text,
+                      textColor: context.colors.card,
                       borderColor: Colors.transparent,
                     ),
 

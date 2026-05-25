@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:smartspend/core/network/api_endpoints.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/signin_screen.dart';
 import 'features/auth/screens/welcome_screen.dart';
@@ -79,6 +80,7 @@ class _SmartSpendAppState extends State<SmartSpendApp> {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
         ChangeNotifierProvider(create: (_) => ExchangeRateService()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (ctx, auth, child) {
@@ -89,11 +91,15 @@ class _SmartSpendAppState extends State<SmartSpendApp> {
           }
           return child!;
         },
-        child: MaterialApp.router(
-          title: 'SmartSpend',
-          theme: AppTheme.light,
-          routerConfig: _router,
-          debugShowCheckedModeBanner: false,
+        child: Consumer<ThemeProvider>(
+          builder: (_, theme, __) => MaterialApp.router(
+            title: 'SmartSpend',
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
+            themeMode: theme.mode,
+            routerConfig: _router,
+            debugShowCheckedModeBanner: false,
+          ),
         ),
       ),
     );

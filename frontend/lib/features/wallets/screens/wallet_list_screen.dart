@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/wallet_model.dart';
@@ -22,7 +23,7 @@ class WalletListScreen extends StatelessWidget {
     final symbol = CurrencyFormatter.symbolFor(currency);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -78,7 +79,7 @@ class WalletListScreen extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -107,9 +108,9 @@ class WalletListScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
+          color: Color.alphaBlend(AppColors.orange.withValues(alpha: 0.10), context.colors.card),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
+          border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
         ),
         child: Row(
           children: [
@@ -117,7 +118,7 @@ class WalletListScreen extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFFED7AA),
+                color: AppColors.orange.withValues(alpha: 0.20),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.account_balance_wallet_outlined,
@@ -193,7 +194,7 @@ class _WalletCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -211,7 +212,7 @@ class _WalletCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                       Text(
@@ -232,7 +233,7 @@ class _WalletCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.darkText,
+                        color: context.colors.text,
                       ),
                     ),
                     Text(
@@ -253,7 +254,7 @@ class _WalletCard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: pct,
                   minHeight: 6,
-                  backgroundColor: AppColors.lightBg,
+                  backgroundColor: context.colors.bg,
                   valueColor: const AlwaysStoppedAnimation<Color>(
                       AppColors.primary),
                 ),

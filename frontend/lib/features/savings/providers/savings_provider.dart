@@ -150,6 +150,33 @@ class SavingsProvider extends ChangeNotifier {
         .toList();
   }
 
+  Future<bool> update({
+    required int id,
+    required String name,
+    required double targetAmountMkd,
+    required Color color,
+    DateTime? deadline,
+  }) async {
+    try {
+      await _dio.patch(ApiEndpoints.savingById(id), data: {
+        'amount': targetAmountMkd,
+        if (deadline != null) 'to': deadline.toUtc().toIso8601String(),
+      });
+      final meta = await _loadMeta();
+      final existing = meta[id.toString()] as Map?;
+      final contribs = (existing?['contributions'] as List? ?? [])
+          .map((c) => Contribution.fromJson(c as Map<String, dynamic>))
+          .toList();
+      await _saveMeta(id, name, targetAmountMkd, color, deadline, contribs);
+      await load();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> delete(int id) async {
     try {
       await _dio.delete(ApiEndpoints.savingById(id));

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/category_dot.dart';
@@ -23,11 +24,11 @@ class TransactionDetailScreen extends StatelessWidget {
 
     if (tx == null) {
       return Scaffold(
-        backgroundColor: AppColors.lightBg,
+        backgroundColor: context.colors.bg,
         appBar: AppBar(
-          backgroundColor: AppColors.lightBg,
+          backgroundColor: context.colors.bg,
           elevation: 0,
-          iconTheme: const IconThemeData(color: AppColors.darkText),
+          iconTheme: IconThemeData(color: context.colors.text),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -95,7 +96,7 @@ class _DetailBody extends StatelessWidget {
         '${isIncome ? '+' : '-'}${CurrencyFormatter.format(tx.price)}';
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -111,12 +112,12 @@ class _DetailBody extends StatelessWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.colors.card,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.colors.border),
                       ),
-                      child: const Icon(Icons.arrow_back_ios_new_rounded,
-                          size: 16, color: AppColors.darkText),
+                      child: Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 16, color: context.colors.text),
                     ),
                   ),
                   Expanded(
@@ -126,7 +127,7 @@ class _DetailBody extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                     ),
@@ -147,7 +148,7 @@ class _DetailBody extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 28),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.colors.card,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -161,7 +162,7 @@ class _DetailBody extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                               color: isIncome
                                   ? AppColors.success
-                                  : AppColors.darkText,
+                                  : context.colors.text,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -169,9 +170,11 @@ class _DetailBody extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isIncome
-                                  ? const Color(0xFFECFDF5)
-                                  : const Color(0xFFFEF2F2),
+                              color: Color.alphaBlend(
+                                (isIncome ? AppColors.success : AppColors.error)
+                                    .withValues(alpha: 0.12),
+                                context.colors.card,
+                              ),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -194,7 +197,7 @@ class _DetailBody extends StatelessWidget {
                     // Detail rows
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.colors.card,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
@@ -230,7 +233,10 @@ class _DetailBody extends StatelessWidget {
                               fontSize: 15, fontWeight: FontWeight.w600),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFEF2F2),
+                          backgroundColor: Color.alphaBlend(
+                            AppColors.error.withValues(alpha: 0.12),
+                            context.colors.card,
+                          ),
                           foregroundColor: AppColors.error,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -300,7 +306,7 @@ class _DetailRow extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -35,7 +36,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
     final exchangeSvc = context.watch<ExchangeRateService>();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -96,7 +97,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -223,7 +224,7 @@ class _GoalCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -255,7 +256,7 @@ class _GoalCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                       if (goal.deadline != null)
@@ -275,7 +276,10 @@ class _GoalCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
+                      color: Color.alphaBlend(
+                        AppColors.success.withValues(alpha: 0.12),
+                        context.colors.card,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -313,7 +317,7 @@ class _GoalCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: pct,
                 minHeight: 8,
-                backgroundColor: AppColors.lightBg,
+                backgroundColor: context.colors.bg,
                 valueColor: AlwaysStoppedAnimation<Color>(
                   isDone ? AppColors.success : goal.color,
                 ),

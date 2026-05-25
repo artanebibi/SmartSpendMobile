@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -133,7 +134,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     final symbol = CurrencyFormatter.symbolFor(currency);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -172,12 +173,12 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -186,7 +187,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -201,7 +202,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -225,7 +226,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: name.isEmpty ? AppColors.muted : AppColors.darkText,
+                    color: name.isEmpty ? AppColors.muted : context.colors.text,
                   ),
                 ),
                 Text(
@@ -287,9 +288,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: Row(
               children: [
@@ -300,7 +301,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: _fromDate != null
-                        ? AppColors.darkText
+                        ? context.colors.text
                         : AppColors.muted,
                   ),
                 ),
@@ -321,10 +322,10 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.card,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _toDate == null ? AppColors.error : AppColors.border,
+                color: _toDate == null ? AppColors.error : context.colors.border,
               ),
             ),
             child: Row(
@@ -336,7 +337,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: _toDate != null
-                        ? AppColors.darkText
+                        ? context.colors.text
                         : AppColors.muted,
                   ),
                 ),
@@ -408,7 +409,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
       controller: controller,
       keyboardType: keyboardType,
       onChanged: onChanged,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
@@ -416,15 +417,15 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
         prefixStyle: GoogleFonts.inter(
             fontSize: 15, color: AppColors.muted, fontWeight: FontWeight.w500),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.colors.card,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -21,8 +22,8 @@ class WalletDetailScreen extends StatelessWidget {
 
     if (wallet == null) {
       return Scaffold(
-        backgroundColor: AppColors.lightBg,
-        appBar: AppBar(backgroundColor: AppColors.lightBg, elevation: 0),
+        backgroundColor: context.colors.bg,
+        appBar: AppBar(backgroundColor: context.colors.bg, elevation: 0),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -36,7 +37,7 @@ class WalletDetailScreen extends StatelessWidget {
     final symbol = CurrencyFormatter.symbolFor(currency);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -62,7 +63,7 @@ class WalletDetailScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.colors.card,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(
@@ -82,7 +83,7 @@ class WalletDetailScreen extends StatelessWidget {
                           const EdgeInsets.symmetric(horizontal: 20),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.colors.card,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: ListView.separated(
@@ -138,12 +139,12 @@ class WalletDetailScreen extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -153,7 +154,7 @@ class WalletDetailScreen extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -256,9 +257,9 @@ class WalletDetailScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
+          color: Color.alphaBlend(AppColors.orange.withValues(alpha: 0.10), context.colors.card),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
+          border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +391,7 @@ class _ExpenseRow extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                 ),
                 Text(
@@ -409,7 +410,7 @@ class _ExpenseRow extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.darkText,
+                  color: context.colors.text,
                 ),
               ),
               Text(

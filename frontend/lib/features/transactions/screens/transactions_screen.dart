@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/tx_row.dart';
 import '../models/transaction_model.dart';
@@ -74,7 +75,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final groups = grouped.keys.toList();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -186,7 +187,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -195,9 +196,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -207,7 +208,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.darkText,
+                      color: context.colors.text,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -241,10 +242,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: active ? AppColors.primary : Colors.white,
+                color: active ? AppColors.primary : context.colors.card,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: active ? AppColors.primary : AppColors.border,
+                  color: active ? AppColors.primary : context.colors.border,
                 ),
               ),
               child: Text(
@@ -252,7 +253,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: active ? Colors.white : AppColors.darkText,
+                  color: active ? Colors.white : context.colors.text,
                 ),
               ),
             ),
@@ -282,7 +283,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.card,
               borderRadius: BorderRadius.circular(16),
             ),
             child: ListView.separated(

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/transactions/providers/transaction_provider.dart';
@@ -61,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final (intPart, decPart) = CurrencyFormatter.splitAmount(balance);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -111,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
           ),
@@ -228,7 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Expanded(
             child: _StatCard(
-              bg: const Color(0xFFECFDF5),
               icon: Icons.arrow_downward_rounded,
               iconColor: AppColors.success,
               label: 'Income',
@@ -238,7 +238,6 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: _StatCard(
-              bg: const Color(0xFFFEF2F2),
               icon: Icons.arrow_upward_rounded,
               iconColor: AppColors.error,
               label: 'Expenses',
@@ -267,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -293,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.darkText,
+                              color: context.colors.text,
                             ),
                           ),
                         ],
@@ -316,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -353,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.colors.card,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Center(
@@ -371,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: ListView.separated(
@@ -392,14 +391,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _StatCard extends StatelessWidget {
   const _StatCard({
-    required this.bg,
     required this.icon,
     required this.iconColor,
     required this.label,
     required this.amount,
   });
 
-  final Color bg;
   final IconData icon;
   final Color iconColor;
   final String label;
@@ -407,6 +404,10 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bg = Color.alphaBlend(
+      iconColor.withValues(alpha: 0.10),
+      context.colors.card,
+    );
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -442,7 +443,7 @@ class _StatCard extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
