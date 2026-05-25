@@ -25,6 +25,7 @@ class ProfileProvider extends ChangeNotifier {
         ApiEndpoints.userUpdate,
         data: {'preferred_currency': currency},
       );
+      notifyListeners();
       return true;
     } catch (_) {
       return false;

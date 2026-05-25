@@ -3,6 +3,39 @@ import 'package:intl/intl.dart';
 class CurrencyFormatter {
   CurrencyFormatter._();
 
+  static const _symbols = <String, String>{
+    'USD': '\$',
+    'EUR': '€',
+    'GBP': '£',
+    'MKD': 'MKD ',
+    'CHF': 'CHF ',
+    'CAD': 'CA\$',
+    'AUD': 'A\$',
+    'JPY': '¥',
+    'CNY': '¥',
+    'INR': '₹',
+    'BRL': 'R\$',
+    'SEK': 'kr ',
+    'NOK': 'kr ',
+    'DKK': 'kr ',
+    'PLN': 'zł ',
+    'CZK': 'Kč ',
+    'HUF': 'Ft ',
+    'RON': 'lei ',
+    'BGN': 'лв ',
+    'HRK': 'kn ',
+    'RSD': 'din ',
+    'TRY': '₺',
+    'RUB': '₽',
+    'UAH': '₴',
+    'KZT': '₸',
+  };
+
+  /// Returns the symbol for a given ISO 4217 currency code.
+  /// Falls back to the code itself when the symbol is unknown.
+  static String symbolFor(String code) =>
+      _symbols[code.toUpperCase()] ?? '$code ';
+
   static String format(double amount, {String symbol = '\$'}) {
     final formatted = NumberFormat('#,##0.00').format(amount.abs());
     return '$symbol$formatted';

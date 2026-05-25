@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final balance = user?.balance ?? 0.0;
     final savingGoal = user?.monthlySavingGoal ?? 0.0;
     final currency = user?.preferredCurrency ?? 'USD';
-    final symbol = currency == 'MKD' ? 'MKD ' : (currency == 'EUR' ? '€' : '\$');
+    final symbol = CurrencyFormatter.symbolFor(currency);
 
     // Compute income and expense from recent transactions
     final txs = txProvider.transactions;

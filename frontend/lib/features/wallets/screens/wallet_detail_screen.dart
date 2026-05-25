@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -31,6 +32,8 @@ class WalletDetailScreen extends StatelessWidget {
         .where((e) =>
             wallet.members.any((m) => m.name == e.member.name))
         .toList();
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
 
     return Scaffold(
       backgroundColor: AppColors.lightBg,
@@ -42,12 +45,12 @@ class WalletDetailScreen extends StatelessWidget {
                 SliverToBoxAdapter(child: _buildHeader(context, wallet)),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 SliverToBoxAdapter(
-                    child: _buildSummaryCard(wallet)),
+                    child: _buildSummaryCard(wallet, symbol)),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 if (relevantBalances.isNotEmpty)
                   SliverToBoxAdapter(
                       child: _buildBalanceAlert(
-                          context, relevantBalances, provider)),
+                          context, relevantBalances, provider, symbol)),
                 if (relevantBalances.isNotEmpty)
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(child: _buildExpensesHeader()),
@@ -91,7 +94,7 @@ class WalletDetailScreen extends StatelessWidget {
                           itemBuilder: (_, i) {
                             final exp = wallet.expenses.reversed
                                 .toList()[i];
-                            return _ExpenseRow(expense: exp);
+                            return _ExpenseRow(expense: exp, symbol: symbol);
                           },
                         ),
                       ),
@@ -160,7 +163,7 @@ class WalletDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(WalletModel wallet) {
+  Widget _buildSummaryCard(WalletModel wallet, String symbol) {
     final spent = wallet.totalSpent;
     final goal = wallet.monthlyGoal;
     final pct =
@@ -205,7 +208,7 @@ class WalletDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  CurrencyFormatter.format(spent),
+                  CurrencyFormatter.format(spent, symbol: symbol),
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -217,7 +220,7 @@ class WalletDetailScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text(
-                      '/ ${CurrencyFormatter.format(goal)} goal',
+                      '/ ${CurrencyFormatter.format(goal, symbol: symbol)} goal',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.55),
@@ -247,7 +250,7 @@ class WalletDetailScreen extends StatelessWidget {
   }
 
   Widget _buildBalanceAlert(BuildContext context,
-      List<dynamic> balances, WalletProvider provider) {
+      List<dynamic> balances, WalletProvider provider, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -275,8 +278,8 @@ class WalletDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   isOwed
-                      ? '${e.member.name} owes you ${CurrencyFormatter.format(e.amount)}'
-                      : 'You owe ${e.member.name} ${CurrencyFormatter.format(e.amount.abs())}',
+                      ? '${e.member.name} owes you ${CurrencyFormatter.format(e.amount, symbol: symbol)}'
+                      : 'You owe ${e.member.name} ${CurrencyFormatter.format(e.amount.abs(), symbol: symbol)}',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isOwed
@@ -345,8 +348,9 @@ class _AvatarRow extends StatelessWidget {
 }
 
 class _ExpenseRow extends StatelessWidget {
-  const _ExpenseRow({required this.expense});
+  const _ExpenseRow({required this.expense, required this.symbol});
   final WalletExpense expense;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
@@ -401,7 +405,7 @@ class _ExpenseRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                CurrencyFormatter.format(expense.amount),
+                CurrencyFormatter.format(expense.amount, symbol: symbol),
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -410,8 +414,8 @@ class _ExpenseRow extends StatelessWidget {
               ),
               Text(
                 isMePayer
-                    ? '+${CurrencyFormatter.format(perPerson * (expense.splitWith.length - 1))}'
-                    : '-${CurrencyFormatter.format(perPerson)}',
+                    ? '+${CurrencyFormatter.format(perPerson * (expense.splitWith.length - 1), symbol: symbol)}'
+                    : '-${CurrencyFormatter.format(perPerson, symbol: symbol)}',
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   color: isMePayer ? AppColors.success : AppColors.error,

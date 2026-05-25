@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/saving_model.dart';
 import '../providers/savings_provider.dart';
 
@@ -34,7 +35,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     if (mounted) setState(() => _contributions = list);
   }
 
-  Future<void> _showAddContribution(SavingModel goal) async {
+  Future<void> _showAddContribution(SavingModel goal, String symbol) async {
     final controller = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -47,7 +48,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               const TextInputType.numberWithOptions(decimal: true),
           autofocus: true,
           decoration: InputDecoration(
-            prefixText: '\$ ',
+            prefixText: '$symbol ',
             hintText: '0.00',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -86,6 +87,8 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     final provider = context.watch<SavingsProvider>();
     final goal =
         provider.savings.where((s) => s.id == widget.id).firstOrNull;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
 
     if (goal == null) {
       return Scaffold(
@@ -107,16 +110,16 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             SliverToBoxAdapter(child: _buildHeader(context, goal)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildProgressCard(context, goal)),
+                child: _buildProgressCard(context, goal, symbol)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildAddButton(context, goal)),
+                child: _buildAddButton(context, goal, symbol)),
             const SliverToBoxAdapter(child: SizedBox(height: 20)),
             if (_contributions.isNotEmpty) ...[
               SliverToBoxAdapter(child: _buildHistoryHeader()),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
               SliverToBoxAdapter(
-                  child: _buildContributionList()),
+                  child: _buildContributionList(symbol)),
             ],
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
@@ -172,7 +175,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildProgressCard(BuildContext context, SavingModel goal) {
+  Widget _buildProgressCard(BuildContext context, SavingModel goal, String symbol) {
     final pct = goal.percentage;
 
     return Padding(
@@ -222,7 +225,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
 
             const SizedBox(height: 16),
             Text(
-              CurrencyFormatter.format(goal.amount),
+              CurrencyFormatter.format(goal.amount, symbol: symbol),
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -230,7 +233,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
               ),
             ),
             Text(
-              'of ${CurrencyFormatter.format(goal.targetAmount)} goal',
+              'of ${CurrencyFormatter.format(goal.targetAmount, symbol: symbol)} goal',
               style: GoogleFonts.inter(
                   fontSize: 13, color: AppColors.muted),
             ),
@@ -260,14 +263,14 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildAddButton(BuildContext context, SavingModel goal) {
+  Widget _buildAddButton(BuildContext context, SavingModel goal, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SizedBox(
         width: double.infinity,
         height: 56,
         child: ElevatedButton(
-          onPressed: () => _showAddContribution(goal),
+          onPressed: () => _showAddContribution(goal, symbol),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -299,7 +302,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
     );
   }
 
-  Widget _buildContributionList() {
+  Widget _buildContributionList(String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -352,7 +355,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
                     ),
                   ),
                   Text(
-                    '+${CurrencyFormatter.format(c.amount)}',
+                    '+${CurrencyFormatter.format(c.amount, symbol: symbol)}',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
