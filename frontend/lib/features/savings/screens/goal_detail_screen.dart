@@ -287,7 +287,7 @@ class _GoalDetailScreenState extends State<GoalDetailScreen> {
             const SizedBox(height: 16),
             Text(
               CurrencyFormatter.format(
-                  exchangeSvc.convertFromMkd(goal.amount, currency),
+                  exchangeSvc.convertFromMkd(goal.currentAmount, currency),
                   symbol: symbol),
               style: GoogleFonts.inter(
                 fontSize: 20,
