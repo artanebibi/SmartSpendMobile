@@ -127,21 +127,21 @@ class SignInScreen extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     // Apple button
-                    _AuthButton(
-                      onTap: () async {
-                        final ok = await auth.signInWithApple();
-                        if (ok && context.mounted) {
-                          context.go('/home/dashboard');
-                        }
-                      },
-                      isLoading: false,
-                      icon: const Icon(Icons.apple_rounded,
-                          size: 24, color: Colors.white),
-                      label: 'Continue with Apple',
-                      bgColor: context.colors.text,
-                      textColor: context.colors.card,
-                      borderColor: Colors.transparent,
-                    ),
+                    if (context.read<AuthProvider>().supportsAppleSignIn)
+                      _AuthButton(
+                        onTap: () async {
+                          final ok = await auth.signInWithApple();
+                          if (ok && context.mounted) {
+                            context.go('/home/dashboard');
+                          }
+                        },
+                        isLoading: false,
+                        icon: const Icon(Icons.apple_rounded, size: 24, color: Colors.white),
+                        label: 'Continue with Apple',
+                        bgColor: context.colors.text,
+                        textColor: context.colors.card,
+                        borderColor: Colors.transparent,
+                      ),
 
                     const SizedBox(height: 32),
                     Text(

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
 import '../models/user_model.dart';
+import 'dart:io';
 
 class AuthProvider extends ChangeNotifier {
   UserModel? _user;
@@ -14,13 +15,9 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
 
   UserModel? get user => _user;
-
   bool get isLoading => _isLoading;
-
   bool get isInitialized => _isInitialized;
-
   String? get error => _error;
-
   bool get isAuthenticated => _user != null;
 
   final _dio = ApiClient.instance;
@@ -28,6 +25,8 @@ class AuthProvider extends ChangeNotifier {
     scopes: ['email', 'profile'],
     serverClientId: dotenv.env['GOOGLE_CLIENT_ID'],
   );
+
+  bool get supportsAppleSignIn => Platform.isIOS || Platform.isMacOS;
 
   Future<void> tryRestoreSession() async {
     try {
