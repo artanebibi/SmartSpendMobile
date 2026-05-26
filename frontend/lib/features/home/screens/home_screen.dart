@@ -9,7 +9,10 @@ import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../features/auth/providers/auth_provider.dart';
 import '../../../features/transactions/providers/transaction_provider.dart';
+// MAKE SURE TO IMPORT YOUR SAVINGS PROVIDER HERE:
+import '../../../features/savings/providers/savings_provider.dart';
 import '../../../shared/widgets/tx_row.dart';
+import '../../savings/screens/total_saved_progress.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,26 +43,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = context.watch<AuthProvider>();
     final txProvider = context.watch<TransactionProvider>();
     final exchangeSvc = context.watch<ExchangeRateService>();
+    final savingsProvider = context.watch<SavingsProvider>();
+
     final user = auth.user;
     final currency = user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
 
-    // All amounts from API are in MKD — convert to user currency for display
-    final balance =
-        exchangeSvc.convertFromMkd(user?.balance ?? 0.0, currency);
-    final savingGoal =
-        exchangeSvc.convertFromMkd(user?.monthlySavingGoal ?? 0.0, currency);
-
-    // Compute income and expense from recent transactions (prices are in MKD)
-    final txs = txProvider.transactions;
-    final totalIncome = exchangeSvc.convertFromMkd(
-        txs.where((t) => t.isIncome).fold(0.0, (s, t) => s + t.price),
-        currency);
-    final totalExpense = exchangeSvc.convertFromMkd(
-        txs.where((t) => t.isExpense).fold(0.0, (s, t) => s + t.price),
-        currency);
-
+    // Balance data
+    final balance = exchangeSvc.convertFromMkd(user?.balance ?? 0.0, currency);
+    final savingGoal = exchangeSvc.convertFromMkd(user?.monthlySavingGoal ?? 0.0, currency);
     final (intPart, decPart) = CurrencyFormatter.splitAmount(balance);
+
+    // Savings data
+    final saved = exchangeSvc.convertFromMkd(savingsProvider.totalSaved, currency);
+    final target = exchangeSvc.convertFromMkd(savingsProvider.totalTarget, currency);
+    final pct = target > 0 ? (saved / target).clamp(0.0, 1.0) : 0.0;
+    final pctLabel = '${(pct * 100).toStringAsFixed(0)}%';
+
+    // Income / Expense data
+    final txs = txProvider.transactions;
+    final totalIncome = exchangeSvc.convertFromMkd(txs.where((t) => t.isIncome).fold(0.0, (s, t) => s + t.price), currency);
+    final totalExpense = exchangeSvc.convertFromMkd(txs.where((t) => t.isExpense).fold(0.0, (s, t) => s + t.price), currency);
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -72,22 +76,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildGreeting(user?.fullName ?? 'there', user?.initials ?? ''),
                   const SizedBox(height: 16),
-                  _buildBalanceCard(
+
+                  // THE SMART CHOICE: One master card to rule them all
+                  _buildCombinedBalanceCard(
                     intPart: intPart,
                     decPart: decPart,
                     symbol: symbol,
                     savingGoal: savingGoal,
-                    currency: currency,
+                    savedLabel: CurrencyFormatter.format(saved, symbol: symbol),
+                    targetLabel: CurrencyFormatter.format(target, symbol: symbol),
+                    pct: pct,
+                    pctLabel: pctLabel,
                   ),
+
                   const SizedBox(height: 12),
-                  _buildIncomeExpenseRow(
-                    income: totalIncome,
-                    expense: totalExpense,
-                    symbol: symbol,
-                  ),
+                  _buildIncomeExpenseRow(income: totalIncome, expense: totalExpense, symbol: symbol),
                   const SizedBox(height: 12),
                   _buildQuickActions(context),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   _buildRecentHeader(context),
                   const SizedBox(height: 8),
                   _buildRecentTransactions(context, txProvider),
@@ -101,6 +107,92 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildCombinedBalanceCard({
+    required String intPart,
+    required String decPart,
+    required String symbol,
+    required double savingGoal,
+    required String savedLabel,
+    required String targetLabel,
+    required double pct,
+    required String pctLabel,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: AppColors.balanceGradient,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Balance Header
+            Text(
+              'TOTAL BALANCE',
+              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.6), letterSpacing: 1),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(symbol, style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white.withValues(alpha: 0.75))),
+                const SizedBox(width: 2),
+                Text(intPart, style: GoogleFonts.inter(fontSize: 40, fontWeight: FontWeight.w800, color: Colors.white, height: 1)),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Text('.$decPart', style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white.withValues(alpha: 0.6))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              savingGoal > 0
+                  ? '↑ ${CurrencyFormatter.format(savingGoal, symbol: symbol)} monthly saving goal'
+                  : '↑ Set a monthly saving goal in Profile',
+              style: GoogleFonts.inter(fontSize: 11, color: Colors.white.withValues(alpha: 0.5)),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
+            ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'SAVINGS GOALS',
+                  style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.6), letterSpacing: 1),
+                ),
+                Text(
+                  pctLabel,
+                  style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 6,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$savedLabel saved of $targetLabel target',
+              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.6)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _buildGreeting(String name, String initials) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -271,34 +363,40 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Row(
           children: actions
-              .map((a) => Expanded(
-                    child: GestureDetector(
-                      onTap: a.onTap,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: a.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(a.icon, color: a.color, size: 22),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            a.label,
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: context.colors.text,
-                            ),
-                          ),
-                        ],
+              .map(
+                (a) => Expanded(
+              child: GestureDetector(
+                onTap: a.onTap,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: a.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        a.icon,
+                        color: a.color,
+                        size: 22,
                       ),
                     ),
-                  ))
+                    const SizedBox(height: 6),
+                    Text(
+                      a.label,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: context.colors.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
               .toList(),
         ),
       ),
