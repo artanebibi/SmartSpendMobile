@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   Widget _buildGreeting(String name, String initials) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       child: Row(
         children: [
           Expanded(

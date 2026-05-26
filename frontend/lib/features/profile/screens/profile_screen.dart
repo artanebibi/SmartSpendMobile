@@ -136,7 +136,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildHeader() {
     return Builder(
       builder: (context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Text(
           'Profile',
           style: GoogleFonts.inter(
