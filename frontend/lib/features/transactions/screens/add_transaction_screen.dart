@@ -182,10 +182,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     const SizedBox(height: 24),
                     _buildNumberPad(),
                     const SizedBox(height: 24),
-                    _buildCategoryLabel(),
-                    const SizedBox(height: 10),
-                    _buildCategoryGrid(),
-                    const SizedBox(height: 20),
+
+                    if (_type == 'Expense') ...[
+                      _buildCategoryLabel(),
+                      const SizedBox(height: 10),
+                      _buildCategoryGrid(),
+                      const SizedBox(height: 20),
+                    ],
+
                     _buildNoteInput(),
                     const SizedBox(height: 24),
                     _buildSaveButton(),
@@ -250,7 +254,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               onTap: () {
                 setState(() => _type = t);
                 final cats = context.read<TransactionProvider>().categories;
-                if (cats.isNotEmpty) _selectCategory(cats.first);
+                if (t == 'Income') {
+                  setState(() {
+                    _selectedCategoryId = null;
+                    _selectedCategoryName = null;
+                  });
+                } else {
+                  final cats = context.read<TransactionProvider>().categories;
+                  if (cats.isNotEmpty) {
+                    _selectCategory(cats.first);
+                  }
+                }
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),

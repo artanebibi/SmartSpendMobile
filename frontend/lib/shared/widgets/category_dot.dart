@@ -13,6 +13,7 @@ const Map<String, String> categoryEmoji = {
   'Bills & Subscriptions': '💳',
   'Transportation':        '🚌',
   'Electronics':           '📱',
+  'Income':                '💸'
 };
 
 class CategoryDot extends StatelessWidget {

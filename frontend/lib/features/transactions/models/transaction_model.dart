@@ -4,7 +4,7 @@ class TransactionModel {
   final double price;
   final DateTime dateMade;
   final int? categoryId;
-  final String categoryName;
+  final String? categoryName;
   final String type; // 'Expense' | 'Income'
 
   const TransactionModel({

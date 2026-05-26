@@ -153,7 +153,7 @@ class _DetailBody extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          CategoryDot(category: tx.categoryName, size: 60),
+                          CategoryDot(category: tx.categoryName ?? tx.type, size: 60),
                           const SizedBox(height: 12),
                           Text(
                             amountStr,
@@ -205,7 +205,7 @@ class _DetailBody extends StatelessWidget {
                           _DetailRow(label: 'Title', value: tx.title),
                           const Divider(height: 1, indent: 16, endIndent: 16),
                           _DetailRow(
-                              label: 'Category', value: tx.categoryName),
+                              label: 'Category', value: tx.categoryName ?? tx.type),
                           const Divider(height: 1, indent: 16, endIndent: 16),
                           _DetailRow(
                               label: 'Date',

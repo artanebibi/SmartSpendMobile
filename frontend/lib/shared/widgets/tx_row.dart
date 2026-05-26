@@ -37,7 +37,7 @@ class TxRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            CategoryDot(category: transaction.categoryName),
+            CategoryDot(category: transaction.categoryName ?? transaction.type),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -69,7 +69,7 @@ class TxRow extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: isIncome ? AppColors.success : context.colors.text,
+                color: isIncome ? AppColors.success : AppColors.error,
               ),
             ),
           ],

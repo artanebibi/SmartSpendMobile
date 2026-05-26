@@ -61,11 +61,15 @@ class TransactionProvider extends ChangeNotifier {
         try {
           final map = e as Map<String, dynamic>;
           final catId = (map['category_id'] as num?)?.toInt();
-          final catName = _categories
+          final type = map['type']?.toString() ?? 'Expense';
+
+          final catName = catId == null
+              ? (type == 'Income' ? 'Income' : 'Other')
+              : _categories
               .firstWhere(
                 (c) => c.id == catId,
-                orElse: () => const CategoryModel(id: 0, name: 'Other'),
-              )
+            orElse: () => const CategoryModel(id: 0, name: 'Other'),
+          )
               .name;
           parsed.add(TransactionModel.fromJson(map, categoryName: catName));
         } catch (parseErr) {
