@@ -148,38 +148,50 @@ func imageToBase64(img image.Image) (string, error) {
 func (s *Server) SaveFromReceipt(c *gin.Context) {
 	_, userId := getUserFromDatabase(c)
 
-	file, _, err := c.Request.FormFile("image")
+	file, header, err := c.Request.FormFile("image")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get image file"})
+		log.Printf("[Receipt OCR] ERROR - Failed to get image file from form: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to get image file: %v", err)})
 		return
 	}
 	defer file.Close()
+	log.Printf("[Receipt OCR] Received photo. (Size: %d bytes)", header.Size)
 
 	var imgBuffer bytes.Buffer
 	teeReader := io.TeeReader(file, &imgBuffer)
 
-	img, _, err := image.Decode(teeReader)
+	img, format, err := image.Decode(teeReader)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to decode image"})
+		log.Printf("[Receipt OCR] ERROR - Image decoding failed: %v. (Check if image format package is imported)", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to decode image: %v", err)})
 		return
 	}
+	log.Printf("[Receipt OCR] Image decoded successfully. Image format: %s", format)
 
 	base64Image, err := imageToBase64(img)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode image to Base64"})
+		log.Printf("[Receipt OCR] ERROR - Base64 encoding failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to encode image to Base64: %v", err)})
+		return
+	}
+	log.Println("[Receipt OCR] Sending to Gemini...")
+	tx, err := geminiService.SendToGemini("", base64Image)
+	if err != nil {
+		log.Printf("[Receipt OCR] ERROR - Gemini Service: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Gemini service error: %v", err)})
 		return
 	}
 
-	tx, err := geminiService.SendToGemini("", base64Image)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("Gemini service error: %w", err).Error()})
+	if tx == nil {
+		log.Println("[Receipt OCR] ERROR - Gemini returned an empty transaction from receipt")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gemini service returned empty transaction data"})
 		return
 	}
 
 	tx.OwnerId = userId
 	tx.DateMade = time.Now()
 
-	log.Println("Gemini Transaction:", tx)
+	log.Printf("[Receipt OCR] SUCCESS - Gemini parsed transaction successfully!")
 
 	c.JSON(http.StatusOK, tx)
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -17,8 +18,21 @@ var (
 	database_          database.Service               = database.New()
 	categoryRepository repository.ICategoryRepository = repository.NewCategoryRepository(database_)
 	categoryService    ICategoryService               = NewCategoryService(categoryRepository)
-	prompt                                            = fmt.Sprintf("Based on the image, which is a receipt, try to create me a Transaction json.\nRules:\n\nI suggest you create an array of items (item as a key, and price as a value so you have it easier to calculate the total after) but do not include it in the response.\nHow the response should look like:\n{\n\"id\": 0, // leave 0, its autoincremented\n\"title\": \"\", //Based on the items which you have extracted suggest me a title for the transaction made in English\n\"price\": \"\", //Calculate the total price from the receipt\n\"date_made\": \"0001-01-01T11:11:05Z\",\n\"owner_id\": \"\",\n\"category_id\": \"From the list of categories: %v choose one where you think the current transaction falls best into, but add the id\"\n\"type: \"Expense\"\n}\nDo not let your model fail to prioritize a semantically correct and common product name over a literal, but flawed, character transcription\n", categoryService.FindAll())
-	promptOCR                                         = fmt.Sprintf("Based on the data extracted below from an OCR service in Tesseract in Macedonian try to extract the item names, if multiple items are tried to be written but in different matter (letters are shuffled) try to predict / find the real item in Macedonian Markets.\nRules:\n1. Output in JSON only.\n2. Create me a Transaction model which JSON looks like this\n3. I suggest you create an array of items (item as a key, and price as a value so you have it easier to calculate the total after) but do not include it in the response.\nHow the response should look like:\n{\n\"id\": 0, // leave 0, its autoincremented\n\"title\": \"\", //Based on the items which you have extracted suggest me a title for the transaction made in English\n\"price\": \"\", //Calculate the total price from the receipt\n\"date_made\": \"\",\n\"owner_id\": \"\",\n\"category_id\": \"From the list of categories: %v choose one where you think the current transaction falls best into, but add the id\"\n\"type: \"Expense\"\n}\n4. Only include items that make sense in a Macedonian market.\n5. Dont just trust the text blindly, if there are multiple of the 'same' items display them in the result.\n6. If there are '{number}x' before of what you think is an Item, multiply the price and update the quantity accordingly.\nDo not let your model fail to prioritize a semantically correct and common product name over a literal, but flawed, character transcription\n", categoryService.FindAll())
+
+	prompt = fmt.Sprintf(`Based on the image receipt, generate a single Transaction JSON object. Available Categories list: %v. Output Format Profile:
+{
+  "id": 0,
+  "title": "A concise title summarized in English",
+  "price": 0.0,
+  "date_made": "2026-01-01T00:00:00Z",
+  "owner_id": "",
+  "category_id": 0,
+  "type": "Expense"
+}
+Rules:
+1. "price" must be a raw numeric float calculated as the final grand total. Do not wrap it in quotes.
+2. Choose the most appropriate ID from the categories list provided above and map it to the "category_id" field as an integer.
+3. Do not let your model fail to prioritize a semantically correct and common product name over a literal, but flawed, character transcription.`, categoryService.FindAll())
 )
 
 type GeminiResponse struct {
@@ -47,11 +61,14 @@ type GeminiService struct {
 
 func NewGeminiService() *GeminiService {
 	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		log.Println("GEMINI_API_KEY is empty!")
+	}
 	return &GeminiService{apiKey: apiKey}
 }
 
 func (g *GeminiService) SendToGemini(extractedTextOCR string, imageString string) (*model.Transaction, error) {
-	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+	url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent"
 
 	payload := map[string]interface{}{
 		"contents": []map[string]interface{}{
@@ -59,15 +76,19 @@ func (g *GeminiService) SendToGemini(extractedTextOCR string, imageString string
 				"parts": []map[string]interface{}{
 					{"text": prompt},
 					{
-						"inline_data": map[string]string{
-							"mime_type": "image/jpeg",
-							"data":      imageString,
+						"inlineData": map[string]string{
+							"mimeType": "image/jpeg",
+							"data":     imageString,
 						},
 					},
 				},
 			},
 		},
+		"generationConfig": map[string]interface{}{
+			"responseMimeType": "application/json",
+		},
 	}
+
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
@@ -92,23 +113,36 @@ func (g *GeminiService) SendToGemini(extractedTextOCR string, imageString string
 		return nil, err
 	}
 
-	var geminiResp GeminiResponse
-	if err := json.Unmarshal(body, &geminiResp); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal Gemini API response: %w", err)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Gemini API returned server error status %d: %s", resp.StatusCode, string(body))
 	}
 
-	if len(geminiResp.Candidates) == 0 || len(geminiResp.Candidates[0].Content.Parts) == 0 {
-		return nil, fmt.Errorf("Gemini API response did not contain a valid candidate with text content")
+	var geminiResp GeminiResponse
+	if err := json.Unmarshal(body, &geminiResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal Gemini API response structure: %w", err)
+	}
+
+	if len(geminiResp.Candidates) == 0 {
+		return nil, fmt.Errorf("Gemini API returned zero execution candidates. Full body log: %s", string(body))
+	}
+
+	if len(geminiResp.Candidates[0].Content.Parts) == 0 {
+		return nil, fmt.Errorf("Gemini candidate content returned empty parts array. Full body log: %s", string(body))
 	}
 
 	jsonText := geminiResp.Candidates[0].Content.Parts[0].Text
 	jsonText = strings.TrimSpace(jsonText)
-	jsonText = strings.TrimPrefix(jsonText, "```json\n")
-	jsonText = strings.TrimSuffix(jsonText, "\n```")
+
+	if strings.HasPrefix(jsonText, "```") {
+		jsonText = strings.TrimPrefix(jsonText, "```json")
+		jsonText = strings.TrimPrefix(jsonText, "```")
+		jsonText = strings.TrimSuffix(jsonText, "```")
+		jsonText = strings.TrimSpace(jsonText)
+	}
 
 	var tx model.Transaction
 	if err := json.Unmarshal([]byte(jsonText), &tx); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal extracted JSON text to transaction model: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal extracted JSON text to your transaction model. Raw output: %s | Error: %w", jsonText, err)
 	}
 
 	return &tx, nil
