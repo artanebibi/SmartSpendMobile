@@ -118,20 +118,39 @@ class TransactionProvider extends ChangeNotifier {
     required String type,
     required int? categoryId,
     required DateTime dateMade,
+    Map<String, dynamic>? location,
   }) async {
     try {
-      await _dio.post(ApiEndpoints.transaction, data: {
+      final Map<String, dynamic> txBody = {
         'title': title,
         'price': price,
-        'date_made': dateMade.toUtc().toIso8601String(),
-        'category_id': categoryId,
         'type': type,
-      });
-      await load();
-      return true;
+        'category_id': categoryId,
+        'date_made': dateMade.toUtc().toIso8601String(),
+      };
+
+      dynamic requestPayload;
+
+      // 2. Wrap payloads uniquely based on flow context
+      if (location != null) {
+        requestPayload = {
+          'transaction': txBody,
+          'transaction-location': location,
+        };
+      } else {
+        requestPayload = txBody;
+      }
+
+      final response = await _dio.post(ApiEndpoints.transaction, data: requestPayload);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // 4. FIX: Use your class's actual refresh method 'load()'
+        await load();
+        return true;
+      }
+      return false;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
       return false;
     }
   }

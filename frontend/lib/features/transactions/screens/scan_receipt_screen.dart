@@ -41,6 +41,9 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         ApiEndpoints.transactionReceipt,
         data: formData,
       );
+      final responseBody = res.data as Map<String, dynamic>;
+      final txData = responseBody['transaction'] as Map<String, dynamic>;
+      final locData = responseBody['location'] as Map<String, dynamic>?;
 
       final data = res.data as Map<String, dynamic>;
       final catProvider = context.read<TransactionProvider>();
@@ -54,19 +57,19 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
 
       final tx = TransactionModel(
         id: 0,
-        title: data['title'] ?? '',
-        price: (data['price'] as num?)?.toDouble() ?? 0,
+        title: txData['title'] ?? '',
+        price: (txData['price'] as num?)?.toDouble() ?? 0,
         dateMade: DateTime.now(),
         categoryId: catId,
         categoryName: catName,
-        type: data['type'] ?? 'Expense',
+        type: txData['type'] ?? 'Expense',
       );
 
       if (mounted) {
         setState(() => _processing = false);
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => AddTransactionScreen(initial: tx),
+            builder: (_) => AddTransactionScreen(initial: tx, initialLocation: locData),
           ),
         );
       }

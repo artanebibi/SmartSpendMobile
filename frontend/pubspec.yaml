@@ -46,6 +46,10 @@ dependencies:
   # Network images
   cached_network_image: ^3.4.1
 
+  # Map
+  flutter_map: ^8.2.1
+  latlong2: ^0.9.1
+
   flutter_dotenv: ^6.0.1
 dev_dependencies:
   flutter_test:

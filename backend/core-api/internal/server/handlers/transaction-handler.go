@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"SmartSpend/internal/domain/dto"
+	"SmartSpend/internal/domain/model"
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -76,23 +78,87 @@ func (s *Server) GetTransactionByID(c *gin.Context) {
 }
 
 func (s *Server) SaveTransaction(c *gin.Context) {
-	var t dto.TransactionDto
-	if err := c.ShouldBindJSON(&t); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+	bodyBytes, err := c.GetRawData()
+	if err != nil {
+		log.Printf("[SmartSpend ERROR] Failed to read request body: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
 		return
 	}
 
-	_, userId := getUserFromDatabase(c)
-	err, message := applicationTransactionService.CreateOrUpdate(&t, userId)
+	// LOG 1: Look at the exact raw payload coming from Flutter
+	log.Printf("[SmartSpend DEBUG] Raw Payload Received: %s", string(bodyBytes))
 
-	if err != nil {
-		c.JSON(500, gin.H{"error": message})
-	} else {
-		c.JSON(200, gin.H{
-			"message": message,
-		})
+	var tx dto.TransactionDto
+	var loc *model.TransactionLocation
+
+	var probe map[string]json.RawMessage
+	if err := json.Unmarshal(bodyBytes, &probe); err != nil {
+		log.Printf("[SmartSpend ERROR] Root JSON unmarshal failed: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON format"})
+		return
 	}
-	return
+
+	if _, isUnifiedFlow := probe["transaction"]; isUnifiedFlow {
+		log.Println("[SmartSpend DEBUG] Flow detected: UNIFIED FLOW (Receipt)")
+
+		var unified struct {
+			Transaction         dto.TransactionDto         `json:"transaction"`
+			TransactionLocation *model.TransactionLocation `json:"transaction-location"`
+		}
+		if err := json.Unmarshal(bodyBytes, &unified); err != nil {
+			log.Printf("[SmartSpend ERROR] Unified struct unmarshal failed: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		tx = unified.Transaction
+		loc = unified.TransactionLocation
+
+		// LOG 2: Verify if the location struct actually bound correctly or became nil
+		if loc == nil {
+			log.Println("[SmartSpend WARNING] Unified flow matched, but 'transaction-location' parsed as NIL! Check your JSON keys.")
+		} else {
+			log.Printf("[SmartSpend DEBUG] Bound Location Data: Address='%s', City='%s', Lat=%f, Lng=%f", loc.Address, loc.City, loc.Lat, loc.Lng)
+		}
+	} else {
+		log.Println("[SmartSpend DEBUG] Flow detected: NORMAL FLOW (No location expected)")
+		if err := json.Unmarshal(bodyBytes, &tx); err != nil {
+			log.Printf("[SmartSpend ERROR] Normal flow struct unmarshal failed: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	_, userId := getUserFromDatabase(c)
+
+	// LOG 3: Check Transaction ID value BEFORE database insertion
+	log.Printf("[SmartSpend DEBUG] Transaction ID BEFORE service call: %d", tx.ID)
+
+	err, message := applicationTransactionService.CreateOrUpdate(&tx, userId)
+	if err != nil {
+		log.Printf("[SmartSpend ERROR] Service failed to save transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": message})
+		return
+	}
+
+	// LOG 4: Check Transaction ID AFTER database insertion to verify pass-by-reference mutation
+	log.Printf("[SmartSpend DEBUG] Transaction ID AFTER service call: %d", tx.ID)
+
+	if loc != nil {
+		loc.TransactionID = tx.ID
+		log.Printf("[SmartSpend DEBUG] Attempting to save Location linked to Transaction ID: %d", loc.TransactionID)
+
+		if locErr := transactionLocationRepository.Save(loc); locErr != nil {
+			log.Printf("[SmartSpend CRITICAL] Location found, but Repository Save FAILED: %v", locErr)
+		} else {
+			log.Printf("[SmartSpend SUCCESS] Location successfully inserted into DB with ID: %d", loc.ID)
+		}
+	} else {
+		log.Println("[SmartSpend DEBUG] Skipping location save: 'loc' variable is nil.")
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": message,
+	})
 }
 
 func (s *Server) UpdateTransaction(c *gin.Context) {
@@ -175,7 +241,7 @@ func (s *Server) SaveFromReceipt(c *gin.Context) {
 		return
 	}
 	log.Println("[Receipt OCR] Sending to Gemini...")
-	tx, err := geminiService.SendToGemini("", base64Image)
+	tx, loc, err := geminiService.SendToGemini("", base64Image)
 	if err != nil {
 		log.Printf("[Receipt OCR] ERROR - Gemini Service: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Gemini service error: %v", err)})
@@ -193,5 +259,8 @@ func (s *Server) SaveFromReceipt(c *gin.Context) {
 
 	log.Printf("[Receipt OCR] SUCCESS - Gemini parsed transaction successfully!")
 
-	c.JSON(http.StatusOK, tx)
+	c.JSON(http.StatusOK, gin.H{
+		"transaction": tx,
+		"location":    loc,
+	})
 }

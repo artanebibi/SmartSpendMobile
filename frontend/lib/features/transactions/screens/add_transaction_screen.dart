@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,12 +14,12 @@ import '../../../shared/widgets/category_dot.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
 
-
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key, this.initial});
+  const AddTransactionScreen({super.key, this.initial, this.initialLocation});
 
   /// If set, the screen is in edit mode.
   final TransactionModel? initial;
+  final Map<String, dynamic>? initialLocation;
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -26,11 +28,17 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   late String _type;
   String _amount = '0';
-  // Store both ID and name together — no name-lookup in _save() needed.
   int? _selectedCategoryId;
   String? _selectedCategoryName;
+
   final _titleController = TextEditingController();
   final _noteController = TextEditingController();
+
+  // Location Controllers & State
+  final _addressController = TextEditingController();
+  final _cityController = TextEditingController();
+  double? _lat;
+  double? _lng;
   bool _saving = false;
 
   void _selectCategory(CategoryModel cat) {
@@ -54,6 +62,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type = 'Expense';
     }
 
+    // Initialize location variables if passed from receipt scan
+    if (widget.initialLocation != null) {
+      _addressController.text = widget.initialLocation!['address'] ?? '';
+      _cityController.text = widget.initialLocation!['city'] ?? '';
+      _lat = (widget.initialLocation!['lat'] as num?)?.toDouble();
+      _lng = (widget.initialLocation!['lng'] as num?)?.toDouble();
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final provider = context.read<TransactionProvider>();
@@ -61,17 +77,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (mounted && _selectedCategoryId == null && provider.categories.isNotEmpty) {
         _selectCategory(provider.categories.first);
       }
-      // In edit mode: initial price is stored as MKD — convert to user currency for display
+
       final tx = widget.initial;
       if (tx != null && mounted) {
         final svc = context.read<ExchangeRateService>();
-        final currency =
-            context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+        final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
         await svc.prefetchRate(currency);
         if (mounted) {
           setState(() {
-            _amount =
-                svc.convertFromMkd(tx.price, currency).toStringAsFixed(2);
+            _amount = svc.convertFromMkd(tx.price, currency).toStringAsFixed(2);
           });
         }
       }
@@ -82,6 +96,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   void dispose() {
     _titleController.dispose();
     _noteController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -95,13 +111,121 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         if (_amount == '0') {
           _amount = key;
         } else {
-          // Allow at most 2 decimal places
-          if (_amount.contains('.') &&
-              _amount.split('.')[1].length >= 2) return;
+          if (_amount.contains('.') && _amount.split('.')[1].length >= 2) return;
           _amount += key;
         }
       }
     });
+  }
+
+  // Opens the bottom sheet banner displaying OpenStreetMap view
+  void _showLocationBanner() {
+    if (_lat == null || _lng == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            height: 520,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: context.colors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Merchant Location',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: context.colors.text,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Live interactive Map View using OpenStreetMap (Free)
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: FlutterMap(
+                      options: MapOptions(
+                        initialCenter: LatLng(_lat!, _lng!),
+                        initialZoom: 15.5,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.smartspend.app',
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(_lat!, _lng!),
+                              width: 40,
+                              height: 40,
+                              child: const Icon(
+                                Icons.location_on_rounded,
+                                color: Colors.red,
+                                size: 36,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Editable Fields inside the banner
+                TextField(
+                  controller: _addressController,
+                  style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
+                  decoration: InputDecoration(
+                    labelText: 'Address',
+                    labelStyle: GoogleFonts.inter(color: AppColors.muted),
+                    filled: true,
+                    fillColor: context.colors.bg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _cityController,
+                  style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
+                  decoration: InputDecoration(
+                    labelText: 'City',
+                    labelStyle: GoogleFonts.inter(color: AppColors.muted),
+                    filled: true,
+                    fillColor: context.colors.bg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _save() async {
@@ -115,15 +239,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         ? (_selectedCategoryName ?? 'Transaction')
         : _titleController.text.trim();
 
-    // Convert from user's preferred currency to MKD before storing
-    final currency =
-        context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
-    final mkdPrice = await context
-        .read<ExchangeRateService>()
-        .exchangeForDbStore(price, currency);
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final mkdPrice = await context.read<ExchangeRateService>().exchangeForDbStore(price, currency);
+
+    // Collect Location info if captured
+    Map<String, dynamic>? finalLocation;
+    if (_lat != null && _lng != null) {
+      finalLocation = {
+        'address': _addressController.text.trim(),
+        'city': _cityController.text.trim(),
+        'lat': _lat,
+        'lng': _lng,
+      };
+    }
 
     bool ok;
-    if (widget.initial != null) {
+    if (widget.initial != null && widget.initial!.id > 0) {
       ok = await provider.update(TransactionModel(
         id: widget.initial!.id,
         title: title,
@@ -134,12 +265,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         type: _type,
       ));
     } else {
+      // This is a brand new insert (from the OCR scan), so it safely routes here!
       ok = await provider.add(
         title: title,
         price: mkdPrice,
         type: _type,
         categoryId: _selectedCategoryId,
         dateMade: DateTime.now(),
+        location: finalLocation, // Sends the location payload to the backend
       );
     }
 
@@ -177,6 +310,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     _buildTypeToggle(),
                     const SizedBox(height: 16),
                     _buildTitleInput(),
+                    const SizedBox(height: 16),
+
+                    // NEW: Dynamic Location Banner Trigger Button
+                    if (_lat != null && _lng != null) _buildLocationTriggerTile(),
+
                     const SizedBox(height: 24),
                     _buildAmountDisplay(),
                     const SizedBox(height: 24),
@@ -198,6 +336,44 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationTriggerTile() {
+    return GestureDetector(
+      onTap: _showLocationBanner,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: context.colors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.map_rounded, color: AppColors.success, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Merchant Location Verified',
+                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: context.colors.text),
+                  ),
+                  Text(
+                    _addressController.text.isNotEmpty ? _addressController.text : 'Tap to view map & edit info',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(fontSize: 11, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.muted),
           ],
         ),
       ),
