@@ -24,6 +24,7 @@ var (
 	categoryRepository            repository.ICategoryRepository            = repository.NewCategoryRepository(database)
 	statisticsRepository          repository.IStatisticsRepository          = repository.NewStatisticsRepository(database)
 	savingRepository              repository.ISavingRepository              = repository.NewSavingRepository(database)
+	walletRepository              repository.IWalletRepository              = repository.NewWalletRepository(database)
 
 	userService                domain.IUserService                = domain.NewUserService(userRepository)
 	jwtService                 domain.IJWTService                 = domain.NewJWTService()
@@ -37,6 +38,7 @@ var (
 	applicationUserService        application.IUserAppService                = application.NewUserAppService(userService)
 	applicationTransactionService application.IApplicationTransactionService = application.NewApplicationTransactionService(transactionRepository)
 	applicationSavingService      application.IApplicationSavingService      = application.NewApplicationSavingService(savingRepository)
+	applicationWalletService      application.IApplicationWalletService      = application.NewApplicationWalletService(walletRepository, transactionRepository)
 )
 
 func parseFlexibleTime(timeStr string) (time.Time, error) {
@@ -79,6 +81,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	currencyBasePath := "/api/currency"
 	statisticsBasePath := "/api/statistics"
 	savingsBasePath := "/api/saving"
+	walletBasePath := "/api/wallet"
 
 	r.GET("/health", s.healthHandler)
 
@@ -146,6 +149,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 		saving.POST("", s.SaveSaving)
 		saving.PATCH("/:id", s.UpdateSaving)
 		saving.DELETE("/:id", s.DeleteTransaction)
+	}
+
+	wallet := r.Group(walletBasePath, middleware.AuthMiddleware())
+	{
+		wallet.POST("/:id/expense", s.LinkWalletExpense)
+		wallet.DELETE("/:id/expense/:walletTxId", s.UnlinkWalletExpense)
+		wallet.GET("/:id/balances", s.GetWalletBalances)
 	}
 	return r
 }

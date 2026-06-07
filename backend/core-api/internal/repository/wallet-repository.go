@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	"SmartSpend/internal/database"
@@ -12,6 +13,11 @@ type WalletTransactionWithDetails struct {
 	model.WalletTransaction
 	Transaction model.Transaction               `json:"transaction"`
 	Splits      []*model.WalletTransactionSplit `json:"splits"`
+}
+
+type WalletMemberWithDetails struct {
+	UserID string
+	Name   string
 }
 
 type IWalletRepository interface {
@@ -26,10 +32,12 @@ type IWalletRepository interface {
 	GetMembers(walletID int64) ([]*model.WalletMember, error)
 	IsMember(walletID int64, userID string) (bool, error)
 	GetMemberRole(walletID int64, userID string) (string, error)
+	GetMembersWithDetails(walletID int64) ([]*WalletMemberWithDetails, error)
 
 	AddWalletTransaction(walletTx *model.WalletTransaction, splits []*model.WalletTransactionSplit) error
 	RemoveWalletTransaction(walletTxID int64) error
 	GetWalletTransactions(walletID int64) ([]*WalletTransactionWithDetails, error)
+	FindWalletTransactionByID(walletTxID int64) (*model.WalletTransaction, error)
 
 	AddSettlement(settlement *model.WalletSettlement) error
 	GetSettlements(walletID int64) ([]*model.WalletSettlement, error)
@@ -176,6 +184,18 @@ func (d *databaseWalletRepository) RemoveWalletTransaction(walletTxID int64) err
 	return err
 }
 
+func (d *databaseWalletRepository) FindWalletTransactionByID(walletTxID int64) (*model.WalletTransaction, error) {
+	var wt model.WalletTransaction
+	err := d.db.QueryRow(
+		"SELECT id, wallet_id, transaction_id, added_at FROM wallet_transactions WHERE id = $1",
+		walletTxID,
+	).Scan(&wt.ID, &wt.WalletID, &wt.TransactionID, &wt.AddedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("wallet transaction not found")
+	}
+	return &wt, err
+}
+
 func (d *databaseWalletRepository) GetWalletTransactions(walletID int64) ([]*WalletTransactionWithDetails, error) {
 	// JOIN wallet_transactions and transactions
 	query := `
@@ -229,6 +249,29 @@ func (d *databaseWalletRepository) GetWalletTransactions(walletID int64) ([]*Wal
 		results = append(results, &tx)
 	}
 	return results, nil
+}
+
+func (d *databaseWalletRepository) GetMembersWithDetails(walletID int64) ([]*WalletMemberWithDetails, error) {
+	rows, err := d.db.Query(`
+		SELECT wm.user_id, u.first_name || ' ' || u.last_name AS name
+		FROM wallet_members wm
+		JOIN users u ON wm.user_id = u.id
+		WHERE wm.wallet_id = $1
+	`, walletID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var members []*WalletMemberWithDetails
+	for rows.Next() {
+		var m WalletMemberWithDetails
+		if err := rows.Scan(&m.UserID, &m.Name); err != nil {
+			log.Println(err)
+			continue
+		}
+		members = append(members, &m)
+	}
+	return members, nil
 }
 
 // --- Settlements ---
