@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS wallets CASCADE;
+DROP TABLE IF EXISTS wallet_members CASCADE;
+DROP TABLE IF EXISTS wallet_transactions CASCADE;
+DROP TABLE IF EXISTS wallet_transaction_splits CASCADE;
+DROP TABLE IF EXISTS wallet_settlements CASCADE;
