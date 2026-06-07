@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
-const Map<String, String> categoryEmoji = {
-  'Groceries':             '🛒',
-  'Health':                '💊',
-  'Home':                  '🏠',
-  'Restaurants & Dining':  '🍔',
-  'Education':             '📚',
-  'Travel':                '✈️',
-  'Entertainment':         '🎬',
-  'Other':                 '✨',
-  'Bills & Subscriptions': '💳',
-  'Transportation':        '🚌',
-  'Electronics':           '📱',
-  'Income':                '💸'
+const Map<String, IconData> categoryIcon = {
+  'Groceries':             Icons.shopping_cart_rounded,
+  'Health':                Icons.local_pharmacy_rounded,
+  'Home':                  Icons.home_rounded,
+  'Restaurants & Dining':  Icons.restaurant_rounded,
+  'Education':             Icons.school_rounded,
+  'Travel':                Icons.flight_rounded,
+  'Entertainment':         Icons.movie_rounded,
+  'Other':                 Icons.category_rounded,
+  'Bills & Subscriptions': Icons.receipt_long_rounded,
+  'Transportation':        Icons.directions_bus_rounded,
+  'Electronics':           Icons.devices_rounded,
+  'Income':                Icons.account_balance_wallet_rounded,
 };
 
 class CategoryDot extends StatelessWidget {
@@ -36,9 +36,10 @@ class CategoryDot extends StatelessWidget {
         borderRadius: BorderRadius.circular(size / 2),
       ),
       child: Center(
-        child: Text(
-          categoryEmoji[category] ?? '✨',
-          style: TextStyle(fontSize: size * 0.45),
+        child: Icon(
+          categoryIcon[category] ?? Icons.category_rounded,
+          size: size * 0.50,
+          color: AppColors.categoryIcon(category),
         ),
       ),
     );

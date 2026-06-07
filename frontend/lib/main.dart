@@ -158,9 +158,19 @@ GoRouter _buildRouter(AuthProvider auth) => GoRouter(
               routes: [
                 GoRoute(
                   path: 'add',
-                  builder: (context, state) => AddTransactionScreen(
-                    initial: state.extra as TransactionModel?,
-                  ),
+                  builder: (context, state) {
+                    final extra = state.extra;
+                    if (extra is Map<String, dynamic>) {
+                      return AddTransactionScreen(
+                        initial: extra['tx'] as TransactionModel?,
+                        initialLocation:
+                            extra['loc'] as Map<String, dynamic>?,
+                      );
+                    }
+                    return AddTransactionScreen(
+                      initial: extra as TransactionModel?,
+                    );
+                  },
                 ),
                 GoRoute(
                   path: 'scan',
