@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 
 class AppInput extends StatelessWidget {
   const AppInput({
@@ -61,7 +62,7 @@ class AppInput extends StatelessWidget {
           maxLines: maxLines,
           style: GoogleFonts.inter(
             fontSize: 15,
-            color: AppColors.darkText,
+            color: context.colors.text,
             fontWeight: FontWeight.w500,
           ),
           decoration: InputDecoration(

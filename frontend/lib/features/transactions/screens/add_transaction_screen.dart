@@ -491,7 +491,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             style: GoogleFonts.inter(
               fontSize: 60,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
               height: 1,
             ),
           ),
@@ -581,7 +581,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: selected ? AppColors.primary : AppColors.darkText,
+                    color: selected ? AppColors.primary : context.colors.text,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
@@ -159,12 +160,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -173,7 +174,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -205,7 +206,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             style: GoogleFonts.inter(
               fontSize: 56,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -235,13 +236,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   Widget _buildDescInput() {
     return TextField(
       controller: _descController,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
       decoration: InputDecoration(
         hintText: 'Add a description...',
         hintStyle:
             GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.colors.card,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
@@ -309,7 +310,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     fontSize: 11,
                     fontWeight:
                         selected ? FontWeight.w600 : FontWeight.w400,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                 ),
               ],
@@ -325,9 +326,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       height: 44,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Row(
         children: [
@@ -390,7 +391,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   Text(
                     m.name == kMockMe.name ? 'You' : m.name,
                     style: GoogleFonts.inter(
-                        fontSize: 12, color: AppColors.darkText),
+                        fontSize: 12, color: context.colors.text),
                   ),
                   const Spacer(),
                   Text(
@@ -447,9 +448,9 @@ class _NumKeyState extends State<_NumKey> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 80),
         decoration: BoxDecoration(
-          color: _pressed ? AppColors.secondaryBg : Colors.white,
+          color: _pressed ? context.colors.secondaryBg : context.colors.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Center(
           child: Text(
@@ -457,7 +458,7 @@ class _NumKeyState extends State<_NumKey> {
             style: GoogleFonts.inter(
               fontSize: 20,
               fontWeight: FontWeight.w500,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ),

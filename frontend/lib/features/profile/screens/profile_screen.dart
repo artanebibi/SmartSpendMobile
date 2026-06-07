@@ -346,7 +346,7 @@ class ProfileScreen extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -411,7 +411,7 @@ class ProfileScreen extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),

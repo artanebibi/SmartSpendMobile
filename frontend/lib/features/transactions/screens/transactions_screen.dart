@@ -104,7 +104,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                             'Could not load transactions',
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w700,
-                              color: AppColors.darkText,
+                              color: context.colors.text,
                             ),
                           ),
                           const SizedBox(height: 6),
