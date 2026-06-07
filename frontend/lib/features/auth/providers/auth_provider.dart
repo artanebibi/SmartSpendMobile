@@ -172,13 +172,14 @@ class AuthProvider extends ChangeNotifier {
       final res = await _dio.get(ApiEndpoints.userBalances);
       final data = res.data['data'] as Map<String, dynamic>;
       _user = _user!.copyWith(
-        balance: (data['balance'] as num).toDouble(),
-        monthlySavingGoal: (data['monthly_saving_goal'] as num).toDouble(),
+        balance: double.tryParse(data['balance']?.toString() ?? '0') ?? 0.0,
+        monthlySavingGoal: double.tryParse(data['monthly_saving_goal']?.toString() ?? '0') ?? 0.0,
       );
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[Auth] Failed to refresh balances: $e');
+    }
   }
-
   Future<void> _handleAuthResponse(Map<String, dynamic> body) async {
     final accessToken = body['access_token'] as String?;
     final refreshToken = body['refresh_token'] as String?;

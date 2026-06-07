@@ -48,7 +48,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final symbol = CurrencyFormatter.symbolFor(currency);
 
     final balance = exchangeSvc.convertFromMkd(user?.balance ?? 0.0, currency);
-    final (intPart, decPart) = CurrencyFormatter.splitAmount(balance);
+
+    final balanceStr = balance.toStringAsFixed(2);
+    final parts = balanceStr.split('.');
+    final rawIntPart = parts[0];
+    final decPart = parts.length > 1 ? parts[1] : '00';
+
+    // Extract the minus sign dynamically for custom layout positioning
+    final isNegative = rawIntPart.startsWith('-');
+    final intPart = isNegative ? rawIntPart.substring(1) : rawIntPart;
+    final displaySymbol = symbol;
 
     final saved = exchangeSvc.convertFromMkd(savingsProvider.totalSaved, currency);
 
@@ -74,9 +83,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildGreeting(user?.fullName ?? 'there', user?.initials ?? ''),
                   const SizedBox(height: 16),
                   _buildBalanceCard(
-                    intPart: intPart,
+                    intPart: isNegative ? '- $intPart' : intPart,
                     decPart: decPart,
-                    symbol: symbol,
+                    symbol: displaySymbol,
                   ),
                   const SizedBox(height: 10),
                   _buildSavingsCard(

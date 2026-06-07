@@ -39,7 +39,7 @@ class UserModel {
         googleEmail: j['google_email'],
         appleEmail: j['apple_email'],
         avatarUrl: j['avatar_url'],
-        balance: (j['balance'] as num?)?.toDouble() ?? 0,
+        balance: double.tryParse(j['balance']?.toString() ?? '0') ?? 0.0,
         monthlySavingGoal: (j['monthly_saving_goal'] as num?)?.toDouble() ?? 0,
         preferredCurrency: j['preferred_currency'] ?? 'USD',
       );
