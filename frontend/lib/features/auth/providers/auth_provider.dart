@@ -97,7 +97,8 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } on DioException catch (e) {
       debugPrint('[Auth] DioException: status=${e.response?.statusCode} body=${e.response?.data}');
-      _error = e.response?.data?['message'] ?? 'Google sign-in failed';
+      final responseData = e.response?.data;
+      _error = (responseData is Map ? responseData['message'] as String? : null) ?? 'Google sign-in failed';
       _setLoading(false);
       return false;
     } catch (e) {
