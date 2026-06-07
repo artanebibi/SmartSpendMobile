@@ -32,7 +32,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String? _selectedCategoryName;
 
   final _titleController = TextEditingController();
-  final _noteController = TextEditingController();
 
   // Location Controllers & State
   final _addressController = TextEditingController();
@@ -107,7 +106,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _noteController.dispose();
     _addressController.dispose();
     _cityController.dispose();
     super.dispose();
@@ -340,8 +338,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       const SizedBox(height: 20),
                     ],
 
-                    _buildNoteInput(),
-                    const SizedBox(height: 24),
                     _buildSaveButton(),
                     const SizedBox(height: 16),
                   ],
@@ -647,34 +643,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildNoteInput() {
-    return TextField(
-      controller: _noteController,
-      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
-      decoration: InputDecoration(
-        hintText: 'Add a note...',
-        hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
-        filled: true,
-        fillColor: context.colors.card,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: context.colors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: context.colors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-      ),
     );
   }
 
