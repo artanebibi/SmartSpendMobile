@@ -280,7 +280,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     if (!mounted) return;
     if (ok) {
       context.read<AuthProvider>().refreshBalances();
-      context.pop();
+      Navigator.popUntil(context, (route) => route.isFirst);
     } else {
       final err = context.read<TransactionProvider>().error;
       ScaffoldMessenger.of(context).showSnackBar(
