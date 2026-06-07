@@ -72,7 +72,7 @@ func (s *ApplicationTransactionService) Save(transactionDto *dto.TransactionDto)
 	if tx.DateMade.IsZero() {
 		tx.DateMade = time.Now()
 	}
-	return s.transactionRepository.Save(tx)
+	return s.transactionRepository.Save(&tx)
 }
 
 func (s *ApplicationTransactionService) CreateOrUpdate(transactionDto *dto.TransactionDto, userId string) (error, string) {
@@ -132,10 +132,11 @@ func (s *ApplicationTransactionService) CreateOrUpdate(transactionDto *dto.Trans
 			transaction.CategoryId = transactionDto.CategoryId
 		}
 
-		err := s.transactionRepository.Save(transaction)
+		err := s.transactionRepository.Save(&transaction)
 		if err != nil {
 			return err, err.Error()
 		}
+		transactionDto.ID = transaction.ID
 		return nil, "Transaction successfully created."
 	}
 }
