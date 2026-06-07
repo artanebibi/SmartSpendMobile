@@ -277,7 +277,6 @@ class _StatsScreenState extends State<StatsScreen> {
                 value: CurrencyFormatter.format(
                     exchangeSvc.convertFromMkd(avgPerDay.toDouble(), currency),
                     symbol: symbol),
-                valueColor: AppColors.darkText,
                 sub: 'Expenses',
                 subColor: AppColors.muted,
               ),
@@ -312,7 +311,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -412,7 +411,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -463,7 +462,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 8),
@@ -509,7 +508,7 @@ class _StatsScreenState extends State<StatsScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.card,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -664,7 +663,7 @@ class _StatsScreenState extends State<StatsScreen> {
               GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: context.colors.bg,
               ),
             ),
           ),
@@ -692,14 +691,14 @@ class _StatCard extends StatelessWidget {
   const _StatCard({
     required this.label,
     required this.value,
-    required this.valueColor,
+    this.valueColor,
     required this.sub,
     required this.subColor,
   });
 
   final String label;
   final String value;
-  final Color valueColor;
+  final Color? valueColor;
   final String sub;
   final Color subColor;
 
@@ -724,7 +723,7 @@ class _StatCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: valueColor,
+              color: valueColor ?? context.colors.text,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

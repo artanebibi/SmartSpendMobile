@@ -9,6 +9,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../shared/widgets/category_dot.dart';
 import '../models/transaction_model.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
@@ -92,8 +93,11 @@ class _DetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIncome = tx.isIncome;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final displayPrice = context.watch<ExchangeRateService>().convertFromMkd(tx.price, currency);
     final amountStr =
-        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(tx.price)}';
+        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(displayPrice, symbol: symbol)}';
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -213,7 +217,7 @@ class _DetailBody extends StatelessWidget {
                           const Divider(height: 1, indent: 16, endIndent: 16),
                           _DetailRow(
                               label: 'Amount',
-                              value: CurrencyFormatter.format(tx.price)),
+                              value: CurrencyFormatter.format(displayPrice, symbol: symbol)),
                         ],
                       ),
                     ),

@@ -346,7 +346,7 @@ class ProfileScreen extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -411,7 +411,7 @@ class ProfileScreen extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -424,10 +424,16 @@ class ProfileScreen extends StatelessWidget {
               height: 52,
               child: ElevatedButton(
                 onPressed: () async {
-                  await context.read<ProfileProvider>().updateProfile(
+                  final ok = await context.read<ProfileProvider>().updateProfile(
                         firstName: firstCtrl.text.trim(),
                         lastName: lastCtrl.text.trim(),
                       );
+                  if (ok && context.mounted) {
+                    context.read<AuthProvider>().updateUserName(
+                          firstCtrl.text.trim(),
+                          lastCtrl.text.trim(),
+                        );
+                  }
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
                 style: ElevatedButton.styleFrom(

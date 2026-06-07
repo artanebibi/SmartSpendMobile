@@ -54,7 +54,7 @@ class WalletDetailScreen extends StatelessWidget {
                           context, relevantBalances, provider, symbol)),
                 if (relevantBalances.isNotEmpty)
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                SliverToBoxAdapter(child: _buildExpensesHeader()),
+                SliverToBoxAdapter(child: _buildExpensesHeader(context)),
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),
                 if (wallet.expenses.isEmpty)
                   SliverToBoxAdapter(
@@ -296,7 +296,7 @@ class WalletDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildExpensesHeader() {
+  Widget _buildExpensesHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(
@@ -304,7 +304,7 @@ class WalletDetailScreen extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 15,
           fontWeight: FontWeight.w700,
-          color: AppColors.darkText,
+          color: context.colors.text,
         ),
       ),
     );

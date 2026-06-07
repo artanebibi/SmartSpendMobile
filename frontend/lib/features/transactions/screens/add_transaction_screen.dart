@@ -32,7 +32,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String? _selectedCategoryName;
 
   final _titleController = TextEditingController();
-  final _noteController = TextEditingController();
 
   // Location Controllers & State
   final _addressController = TextEditingController();
@@ -47,7 +46,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _selectedCategoryName = cat.name;
     });
   }
-
   @override
   void initState() {
     super.initState();
@@ -62,7 +60,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type = 'Expense';
     }
 
-    // Initialize location variables if passed from receipt scan
     if (widget.initialLocation != null) {
       _addressController.text = widget.initialLocation!['address'] ?? '';
       _cityController.text = widget.initialLocation!['city'] ?? '';
@@ -74,8 +71,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (!mounted) return;
       final provider = context.read<TransactionProvider>();
       await provider.loadCategories();
-      if (mounted && _selectedCategoryId == null && provider.categories.isNotEmpty) {
-        _selectCategory(provider.categories.first);
+
+      if (mounted && provider.categories.isNotEmpty) {
+        if (_selectedCategoryId != null) {
+          final match = provider.categories.firstWhere(
+                (c) => c.id == _selectedCategoryId,
+            orElse: () => provider.categories.first,
+          );
+          _selectCategory(match);
+        } else if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
+          final match = provider.categories.firstWhere(
+                (c) => c.name.toLowerCase().trim() == _selectedCategoryName!.toLowerCase().trim(),
+            orElse: () => provider.categories.first,
+          );
+          _selectCategory(match);
+        } else {
+          _selectCategory(provider.categories.first);
+        }
       }
 
       final tx = widget.initial;
@@ -91,11 +103,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
     });
   }
-
   @override
   void dispose() {
     _titleController.dispose();
-    _noteController.dispose();
     _addressController.dispose();
     _cityController.dispose();
     super.dispose();
@@ -328,8 +338,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       const SizedBox(height: 20),
                     ],
 
-                    _buildNoteInput(),
-                    const SizedBox(height: 24),
                     _buildSaveButton(),
                     const SizedBox(height: 16),
                   ],
@@ -491,7 +499,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             style: GoogleFonts.inter(
               fontSize: 60,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
               height: 1,
             ),
           ),
@@ -581,7 +589,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: selected ? AppColors.primary : AppColors.darkText,
+                    color: selected ? AppColors.primary : context.colors.text,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -635,34 +643,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildNoteInput() {
-    return TextField(
-      controller: _noteController,
-      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
-      decoration: InputDecoration(
-        hintText: 'Add a note...',
-        hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
-        filled: true,
-        fillColor: context.colors.card,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: context.colors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: context.colors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-      ),
     );
   }
 

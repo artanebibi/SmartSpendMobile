@@ -45,14 +45,16 @@ class UserModel {
       );
 
   UserModel copyWith({
+    String? firstName,
+    String? lastName,
     double? balance,
     double? monthlySavingGoal,
     String? preferredCurrency,
   }) =>
       UserModel(
         id: id,
-        firstName: firstName,
-        lastName: lastName,
+        firstName: firstName ?? this.firstName,
+        lastName: lastName ?? this.lastName,
         username: username,
         googleEmail: googleEmail,
         appleEmail: appleEmail,
