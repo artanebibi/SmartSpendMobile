@@ -84,7 +84,6 @@ class ReceiptProcessingLoader extends StatefulWidget {
 class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
-  final ValueNotifier<int> _repaint = ValueNotifier<int>(0);
 
   // ---- choreography (time-delayed trajectories): the lead coin rolls off
   // first and each following coin starts a beat later, tracing the same eased
@@ -123,6 +122,7 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
   double _successElapsed = 0; // seconds since success began
   _Phase _phase = _Phase.process;
   bool _completedCalled = false;
+  bool _pendingSuccess = false; // queued by didUpdateWidget; consumed at cycle-end
 
   // ---- display strings ----
   late String _title;
@@ -144,6 +144,7 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
     _successElapsed = 0;
     _phase = _Phase.process;
     _completedCalled = false;
+    _pendingSuccess = false;
     _title = widget.title;
     _spin = List<double>.filled(n, 0);
     // grouped & touching at the top: lead at top, the rest trailing left
@@ -165,7 +166,7 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
         widget.success &&
         !old.success &&
         _phase == _Phase.process) {
-      _beginSuccess();
+      _pendingSuccess = true; // let the current cycle finish, then transition
     }
   }
 
@@ -198,13 +199,13 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
       final idx = (_globalMs / 1500).floor() % widget.statuses.length;
       final dots = 1 + ((_globalMs / 400).floor() % 3);
       final next = '${widget.statuses[idx]}${'.' * dots}';
-      if (next != _status) setState(() => _status = next);
+      if (next != _status) _status = next;
 
       // End of a lap (rolled + paused): finish (gold success) or roll again.
       if (_cycleT >= _cycleLen) {
         final shouldFinish = widget.autoDemo
             ? _globalMs >= widget.demoProcessDuration.inMilliseconds
-            : widget.success;
+            : widget.success || _pendingSuccess;
         if (shouldFinish) {
           _beginSuccess();
         } else {
@@ -213,9 +214,7 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
       }
     } else {
       _successElapsed += dt;
-      if (_title != widget.successTitle) {
-        setState(() => _title = widget.successTitle);
-      }
+      if (_title != widget.successTitle) _title = widget.successTitle;
       // success reveal lasts ~0.9s
       if (_successElapsed >= 0.9 && !_completedCalled) {
         _completedCalled = true;
@@ -229,13 +228,12 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
       }
     }
 
-    _repaint.value++;
+    setState(() {});
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _repaint.dispose();
     super.dispose();
   }
 
@@ -259,7 +257,6 @@ class _ReceiptProcessingLoaderState extends State<ReceiptProcessingLoader>
               child: CustomPaint(
                 size: Size.square(widget.size),
                 painter: _LoaderPainter(
-                  repaint: _repaint,
                   ang: _ang,
                   spin: _spin,
                   alpha: _alpha,
@@ -313,14 +310,13 @@ enum _Phase { process, success }
 
 class _LoaderPainter extends CustomPainter {
   _LoaderPainter({
-    required Listenable repaint,
     required this.ang,
     required this.spin,
     required this.alpha,
     required this.phase,
     required this.successP,
     required this.coinCount,
-  }) : super(repaint: repaint);
+  });
 
   final List<double> ang;
   final List<double> spin;
@@ -588,8 +584,7 @@ class _LoaderPainter extends CustomPainter {
         const Offset(cx - R, cy - R),
         const Offset(cx + R, cy + R),
         const [Color(0xFFF4CF72), Color(0xFFD49A36)],
-      )
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      );
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: R),
       -math.pi / 2,
@@ -622,8 +617,7 @@ class _LoaderPainter extends CustomPainter {
         ..strokeWidth = 9
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..color = const Color(0xFFF7E6BF)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+        ..color = const Color(0xFFF7E6BF),
     );
     canvas.restore();
   }

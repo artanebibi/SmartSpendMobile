@@ -54,9 +54,8 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
       final txData = responseBody['transaction'] as Map<String, dynamic>;
       final locData = responseBody['location'] as Map<String, dynamic>?;
 
-      final data = res.data as Map<String, dynamic>;
       final catProvider = context.read<TransactionProvider>();
-      final catId = data['category_id'] as int?;
+      final catId = (txData['category_id'] as num?)?.toInt();
       final catName = catProvider.categories
           .firstWhere(
             (c) => c.id == catId,

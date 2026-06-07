@@ -47,7 +47,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _selectedCategoryName = cat.name;
     });
   }
-
   @override
   void initState() {
     super.initState();
@@ -62,7 +61,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type = 'Expense';
     }
 
-    // Initialize location variables if passed from receipt scan
     if (widget.initialLocation != null) {
       _addressController.text = widget.initialLocation!['address'] ?? '';
       _cityController.text = widget.initialLocation!['city'] ?? '';
@@ -74,8 +72,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       if (!mounted) return;
       final provider = context.read<TransactionProvider>();
       await provider.loadCategories();
-      if (mounted && _selectedCategoryId == null && provider.categories.isNotEmpty) {
-        _selectCategory(provider.categories.first);
+
+      if (mounted && provider.categories.isNotEmpty) {
+        if (_selectedCategoryId != null) {
+          final match = provider.categories.firstWhere(
+                (c) => c.id == _selectedCategoryId,
+            orElse: () => provider.categories.first,
+          );
+          _selectCategory(match);
+        } else if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
+          final match = provider.categories.firstWhere(
+                (c) => c.name.toLowerCase().trim() == _selectedCategoryName!.toLowerCase().trim(),
+            orElse: () => provider.categories.first,
+          );
+          _selectCategory(match);
+        } else {
+          _selectCategory(provider.categories.first);
+        }
       }
 
       final tx = widget.initial;
@@ -91,7 +104,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
     });
   }
-
   @override
   void dispose() {
     _titleController.dispose();
