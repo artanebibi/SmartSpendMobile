@@ -48,69 +48,151 @@ class StatsProvider extends ChangeNotifier {
 
   Future<void> load({required DateTime from, required DateTime to}) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
 
-    final fromStr = from.toUtc().toIso8601String();
-    final toStr = to.toUtc().toIso8601String();
-    final params = {'from': fromStr, 'to': toStr};
+    final params = {
+      'from': from.toUtc().toIso8601String(),
+      'to': to.toUtc().toIso8601String(),
+    };
 
-    try {
-      final results = await Future.wait([
-        _dio.get(ApiEndpoints.statisticsPie, queryParameters: params),
-        _dio.get(ApiEndpoints.statisticsMonthly, queryParameters: params),
-        _dio.get(ApiEndpoints.statisticsTotalSpent, queryParameters: params),
-        _dio.get(ApiEndpoints.statisticsAverage, queryParameters: params),
-      ]);
-
-      // Pie
-      final pieList = (results[0].data['data'] as List? ?? []);
-      if (pieList.isNotEmpty) {
-        final pieStats =
-            pieList[0]['statistics'] as List? ?? [];
-        _pieData = pieStats
-            .map((e) => PieSlice(
-                  category: e['category'] ?? '',
-                  percentage: (e['percentage'] as num).toDouble(),
-                  amount: (e['amount'] as num).toDouble(),
-                ))
-            .toList();
-        _totalIncome =
-            (pieList[0]['total_income'] as num?)?.toDouble() ?? 0;
-        _totalExpenses =
-            (pieList[0]['total_expenses'] as num?)?.toDouble() ?? 0;
-      }
-
-      // Monthly
-      final monthlyList = (results[1].data['data'] as List? ?? []);
-      if (monthlyList.isNotEmpty) {
-        final stats = monthlyList[0]['statistics'] as List? ?? [];
-        // Build a map month -> expense
-        final expMap = <String, double>{};
-        for (final s in stats) {
-          expMap[s['month'] as String] = (s['amount'] as num).toDouble();
-        }
-        _monthlyData = expMap.entries
-            .map((e) => MonthlyBar(
-                  month: e.key,
-                  expense: e.value,
-                  income: 0, // monthly endpoint only has one series
-                ))
-            .toList();
-      }
-
-      // Average
-      final avgList = (results[3].data['data'] as List? ?? []);
-      if (avgList.isNotEmpty) {
-        _averageExpense =
-            (avgList[0]['average_expense'] as num?)?.toDouble() ?? 0;
-        _averageIncome =
-            (avgList[0]['average_income'] as num?)?.toDouble() ?? 0;
-      }
-    } catch (e) {
-      _error = e.toString();
-    }
+    // Each endpoint is fetched independently — one failure does NOT wipe the rest.
+    await Future.wait([
+      _loadPie(params),
+      _loadMonthly(params),
+      _loadAverage(params),
+    ]);
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  // ─── Pie / totals ─────────────────────────────────────────────────────────────
+  // Response shape: { data: [{ statistics: { "CategoryName": percentage, ... },
+  //                            total_expenses: N, total_income: N }] }
+
+  Future<void> _loadPie(Map<String, String> params) async {
+    try {
+      final res = await _dio.get(
+        ApiEndpoints.statisticsPie,
+        queryParameters: params,
+      );
+      debugPrint('[StatsProvider] pie → ${res.statusCode} body: ${res.data}');
+
+      final raw = res.data;
+      final list = raw is List
+          ? raw
+          : (raw is Map ? (raw['data'] as List? ?? []) : <dynamic>[]);
+
+      if (list.isEmpty) return;
+
+      final first = Map<String, dynamic>.from(list[0] as Map);
+
+      _totalIncome = (first['total_income'] as num?)?.toDouble() ?? 0;
+      _totalExpenses = (first['total_expenses'] as num?)?.toDouble() ?? 0;
+
+      // statistics is a Map<String, dynamic> where:
+      //   key   = category name  (e.g. "Groceries")
+      //   value = percentage      (e.g. 4.15)
+      final statsRaw = first['statistics'];
+      if (statsRaw is Map) {
+        _pieData = statsRaw.entries.map((e) {
+          final pct = (e.value as num?)?.toDouble() ?? 0;
+          return PieSlice(
+            category: e.key.toString(),
+            percentage: pct,
+            amount: _totalExpenses * pct / 100,
+          );
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint('[StatsProvider] _loadPie error: $e');
+      _error = e.toString();
+    }
+  }
+
+  // ─── Monthly ─────────────────────────────────────────────────────────────────
+  // Response shape: { data: [{ statistics: { "5": 5540, ... },
+  //                            total_expenses: N, total_income: N }] }
+  // Key is a month number (1–12), value is the total amount for that month.
+
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _monthLabel(String key) {
+    final n = int.tryParse(key);
+    if (n != null && n >= 1 && n <= 12) return _monthNames[n - 1];
+    return key;
+  }
+
+  Future<void> _loadMonthly(Map<String, String> params) async {
+    try {
+      final res = await _dio.get(
+        ApiEndpoints.statisticsMonthly,
+        queryParameters: params,
+      );
+      debugPrint('[StatsProvider] monthly → ${res.statusCode} body: ${res.data}');
+
+      final raw = res.data;
+      final list = raw is List
+          ? raw
+          : (raw is Map ? (raw['data'] as List? ?? []) : <dynamic>[]);
+
+      if (list.isEmpty) return;
+
+      final first = Map<String, dynamic>.from(list[0] as Map);
+
+      // statistics is a Map<String, dynamic> where:
+      //   key   = month number as string (e.g. "5" for May)
+      //   value = total expense amount for that month
+      final statsRaw = first['statistics'];
+      if (statsRaw is Map) {
+        final entries = statsRaw.entries.toList()
+          ..sort((a, b) {
+            final ai = int.tryParse(a.key.toString()) ?? 0;
+            final bi = int.tryParse(b.key.toString()) ?? 0;
+            return ai.compareTo(bi);
+          });
+
+        _monthlyData = entries.map((e) {
+          return MonthlyBar(
+            month: _monthLabel(e.key.toString()),
+            expense: (e.value as num?)?.toDouble() ?? 0,
+            income: 0, // backend monthly endpoint only tracks expenses
+          );
+        }).toList();
+      }
+    } catch (e) {
+      debugPrint('[StatsProvider] _loadMonthly error: $e');
+      _error = e.toString();
+    }
+  }
+
+  // ─── Average ─────────────────────────────────────────────────────────────────
+
+  Future<void> _loadAverage(Map<String, String> params) async {
+    try {
+      final res = await _dio.get(
+        ApiEndpoints.statisticsAverage,
+        queryParameters: params,
+      );
+      debugPrint('[StatsProvider] average → ${res.statusCode} body: ${res.data}');
+
+      final raw = res.data;
+      final list = raw is List
+          ? raw
+          : (raw is Map ? (raw['data'] as List? ?? []) : <dynamic>[]);
+
+      if (list.isEmpty) return;
+
+      final first = list[0] as Map<String, dynamic>? ?? {};
+      _averageExpense = (first['average_expense'] as num?)?.toDouble() ?? 0;
+      _averageIncome = (first['average_income'] as num?)?.toDouble() ?? 0;
+    } catch (e) {
+      debugPrint('[StatsProvider] _loadAverage error: $e');
+      _error = e.toString();
+    }
   }
 }

@@ -3,8 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/savings_provider.dart';
 
 const _colorPalette = [
@@ -29,7 +33,8 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
   final _nameController = TextEditingController();
   final _targetController = TextEditingController();
   Color _color = _colorPalette[0];
-  DateTime? _deadline;
+  DateTime? _fromDate;
+  DateTime? _toDate;
   bool _isLoading = false;
 
   @override
@@ -39,37 +44,97 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     super.dispose();
   }
 
-  Future<void> _pickDeadline() async {
+  Future<void> _pickFromDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _deadline ?? now.add(const Duration(days: 30)),
-      firstDate: now,
+      initialDate: _fromDate ?? now,
+      firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 10),
     );
-    if (picked != null) setState(() => _deadline = picked);
+    if (picked != null) {
+      setState(() {
+        _fromDate = picked;
+        // If to date is before from date, reset it
+        if (_toDate != null && _toDate!.isBefore(picked)) {
+          _toDate = null;
+        }
+      });
+    }
+  }
+
+  Future<void> _pickToDate() async {
+    final now = DateTime.now();
+    final minDate = _fromDate ?? now;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _toDate ?? minDate.add(const Duration(days: 30)),
+      firstDate: minDate,
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked != null) setState(() => _toDate = picked);
+  }
+
+  void _setQuickToDate(int days) {
+    final baseDate = _fromDate ?? DateTime.now();
+    setState(() => _toDate = baseDate.add(Duration(days: days)));
   }
 
   Future<void> _create() async {
     final name = _nameController.text.trim();
     final target = double.tryParse(_targetController.text) ?? 0;
-    if (name.isEmpty || target <= 0) return;
+
+    if (name.isEmpty || target <= 0 || _toDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
-    final ok = await context.read<SavingsProvider>().create(
-          name: name,
-          targetAmount: target,
-          color: _color,
-          deadline: _deadline,
-        );
+
+    // Capture providers before async gap
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final exchangeSvc = context.read<ExchangeRateService>();
+    final provider = context.read<SavingsProvider>();
+
+    final mkdTarget = await exchangeSvc.exchangeForDbStore(target, currency);
+    final fromDate = _fromDate ?? DateTime.now();
+
+    final ok = await provider.create(
+      name: name,
+      currentAmount: 0,
+      targetAmount: mkdTarget,
+      color: _color,
+      from: fromDate,
+      to: _toDate!,
+    );
+
     setState(() => _isLoading = false);
-    if (ok && mounted) context.pop();
+    if (!mounted) return;
+
+    if (ok) {
+      context.pop();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.error ?? 'Failed to create goal. Please try again.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Column(
           children: [
@@ -81,9 +146,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
-                    _buildPreviewCard(),
+                    _buildPreviewCard(symbol),
                     const SizedBox(height: 24),
-                    _buildForm(),
+                    _buildForm(symbol),
                     const SizedBox(height: 24),
                     _buildCreateButton(),
                     const SizedBox(height: 24),
@@ -108,12 +173,12 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -122,7 +187,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -130,14 +195,14 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
-  Widget _buildPreviewCard() {
+  Widget _buildPreviewCard(String symbol) {
     final name = _nameController.text.trim();
     final target = double.tryParse(_targetController.text);
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -152,34 +217,46 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             child: Icon(Icons.track_changes_rounded, color: _color, size: 24),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name.isEmpty ? 'Goal Name' : name,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: name.isEmpty ? AppColors.muted : AppColors.darkText,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? 'Goal Name' : name,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: name.isEmpty ? AppColors.muted : context.colors.text,
+                  ),
                 ),
-              ),
-              Text(
-                target != null && target > 0
-                    ? '\$${target.toStringAsFixed(0)} target'
-                    : 'Set a target amount',
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.muted,
+                Text(
+                  target != null && target > 0
+                      ? '$symbol${target.toStringAsFixed(0)} target'
+                      : 'Set a target amount',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.muted,
+                  ),
                 ),
-              ),
-            ],
+                if (_toDate != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Due ${DateFormatter.dayMonthYear(_toDate!)}',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildForm() {
+  Widget _buildForm(String symbol) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -198,40 +275,33 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           controller: _targetController,
           hint: '0.00',
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          prefix: Padding(
-            padding: const EdgeInsets.only(left: 14, right: 6),
-            child: Text('\$',
-                style: GoogleFonts.inter(
-                    fontSize: 15,
-                    color: AppColors.muted,
-                    fontWeight: FontWeight.w500)),
-          ),
+          prefixText: symbol,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
 
-        _SectionLabel('DEADLINE (OPTIONAL)'),
+        _SectionLabel('START DATE (OPTIONAL)'),
         const SizedBox(height: 6),
         GestureDetector(
-          onTap: _pickDeadline,
+          onTap: _pickFromDate,
           child: Container(
             height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: Row(
               children: [
                 Text(
-                  _deadline != null
-                      ? DateFormatter.dayMonthYear(_deadline!)
-                      : 'Select a date',
+                  _fromDate != null
+                      ? DateFormatter.dayMonthYear(_fromDate!)
+                      : 'Today',
                   style: GoogleFonts.inter(
                     fontSize: 14,
-                    color: _deadline != null
-                        ? AppColors.darkText
+                    color: _fromDate != null
+                        ? context.colors.text
                         : AppColors.muted,
                   ),
                 ),
@@ -242,6 +312,46 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             ),
           ),
         ),
+        const SizedBox(height: 16),
+
+        _SectionLabel('TARGET DATE'),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: _pickToDate,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: context.colors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _toDate == null ? AppColors.error : context.colors.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  _toDate != null
+                      ? DateFormatter.dayMonthYear(_toDate!)
+                      : 'Select target date',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: _toDate != null
+                        ? context.colors.text
+                        : AppColors.muted,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.calendar_today_outlined,
+                    size: 16, color: AppColors.muted),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Quick date selection buttons
+        _buildQuickDateButtons(),
         const SizedBox(height: 20),
 
         _SectionLabel('GOAL COLOR'),
@@ -251,34 +361,71 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
     );
   }
 
+  Widget _buildQuickDateButtons() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildQuickDateChip('2 weeks', 14),
+        _buildQuickDateChip('1 month', 30),
+        _buildQuickDateChip('3 months', 90),
+        _buildQuickDateChip('6 months', 180),
+      ],
+    );
+  }
+
+  Widget _buildQuickDateChip(String label, int days) {
+    return GestureDetector(
+      onTap: () => _setQuickToDate(days),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildInput({
     required TextEditingController controller,
     required String hint,
     TextInputType? keyboardType,
-    Widget? prefix,
+    String? prefixText,
     ValueChanged<String>? onChanged,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
       onChanged: onChanged,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
-        prefixIcon: prefix,
+        prefixText: prefixText,
+        prefixStyle: GoogleFonts.inter(
+            fontSize: 15, color: AppColors.muted, fontWeight: FontWeight.w500),
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: prefix != null
-            ? const EdgeInsets.symmetric(vertical: 14)
-            : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: context.colors.card,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: context.colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -312,7 +459,7 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
             ),
             child: selected
                 ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 18)
+                color: Colors.white, size: 18)
                 : null,
           ),
         );
@@ -331,17 +478,17 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
         child: _isLoading
             ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white))
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: Colors.white))
             : Text('Create Goal',
-                style: GoogleFonts.inter(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
+            style: GoogleFonts.inter(
+                fontSize: 15, fontWeight: FontWeight.w600)),
       ),
     );
   }

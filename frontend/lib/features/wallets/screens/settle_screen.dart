@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../providers/wallet_provider.dart';
 
@@ -18,14 +19,14 @@ class SettleScreen extends StatelessWidget {
     final totalOwedToMe = provider.totalOwedToMe;
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(context)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildNetCard(totalOwed, totalOwedToMe)),
+                child: _buildNetCard(context, totalOwed, totalOwedToMe)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             if (balances.isEmpty)
               SliverFillRemaining(
@@ -41,7 +42,7 @@ class SettleScreen extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -122,12 +123,12 @@ class SettleScreen extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -136,7 +137,7 @@ class SettleScreen extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -144,15 +145,15 @@ class SettleScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNetCard(double totalOwed, double totalOwedToMe) {
+  Widget _buildNetCard(BuildContext context, double totalOwed, double totalOwedToMe) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
+          color: Color.alphaBlend(AppColors.orange.withValues(alpha: 0.10), context.colors.card),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
+          border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
         ),
         child: Row(
           children: [
@@ -160,7 +161,7 @@ class SettleScreen extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: const Color(0xFFFED7AA),
+                color: AppColors.orange.withValues(alpha: 0.20),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.account_balance_wallet_outlined,
@@ -238,7 +239,7 @@ class _BalanceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -276,7 +277,7 @@ class _BalanceCard extends StatelessWidget {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.darkText,
+                        color: context.colors.text,
                       ),
                     ),
                     Text(
@@ -306,7 +307,7 @@ class _BalanceCard extends StatelessWidget {
                 child: OutlinedButton(
                   onPressed: () => _showRemind(context),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
+                    side: BorderSide(color: context.colors.border),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(vertical: 10),

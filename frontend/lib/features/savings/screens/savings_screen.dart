@@ -3,9 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/saving_model.dart';
 import '../providers/savings_provider.dart';
 
@@ -28,9 +31,12 @@ class _SavingsScreenState extends State<SavingsScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SavingsProvider>();
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final exchangeSvc = context.watch<ExchangeRateService>();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -42,7 +48,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
-              SliverToBoxAdapter(child: _buildTotalCard(provider)),
+              SliverToBoxAdapter(child: _buildTotalCard(provider, symbol, exchangeSvc, currency)),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
               if (provider.savings.isEmpty)
                 SliverFillRemaining(
@@ -62,6 +68,9 @@ class _SavingsScreenState extends State<SavingsScreen> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _GoalCard(
                           goal: provider.savings[i],
+                          symbol: symbol,
+                          exchangeSvc: exchangeSvc,
+                          currency: currency,
                           onTap: () => context
                               .push('/home/savings/${provider.savings[i].id}'),
                         ),
@@ -80,7 +89,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       child: Row(
         children: [
           Text(
@@ -88,7 +97,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -109,9 +118,10 @@ class _SavingsScreenState extends State<SavingsScreen> {
     );
   }
 
-  Widget _buildTotalCard(SavingsProvider provider) {
-    final saved = provider.totalSaved;
-    final target = provider.totalTarget;
+  Widget _buildTotalCard(SavingsProvider provider, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
+    final saved = exchangeSvc.convertFromMkd(provider.totalSaved, currency);
+    final target = exchangeSvc.convertFromMkd(provider.totalTarget, currency);
     final pct = target > 0 ? (saved / target).clamp(0.0, 1.0) : 0.0;
     final pctLabel = '${(pct * 100).toStringAsFixed(0)}%';
 
@@ -140,7 +150,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  CurrencyFormatter.format(saved),
+                  CurrencyFormatter.format(saved, symbol: symbol),
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -151,7 +161,7 @@ class _SavingsScreenState extends State<SavingsScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 3),
                   child: Text(
-                    '/ ${CurrencyFormatter.format(target)}',
+                    '/ ${CurrencyFormatter.format(target, symbol: symbol)}',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       color: Colors.white.withValues(alpha: 0.55),
@@ -187,21 +197,34 @@ class _SavingsScreenState extends State<SavingsScreen> {
 }
 
 class _GoalCard extends StatelessWidget {
-  const _GoalCard({required this.goal, required this.onTap});
+  const _GoalCard({
+    required this.goal,
+    required this.symbol,
+    required this.exchangeSvc,
+    required this.currency,
+    required this.onTap,
+  });
   final SavingModel goal;
+  final String symbol;
+  final ExchangeRateService exchangeSvc;
+  final String currency;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final pct = goal.percentage;
-    final done = goal.isComplete;
+    // 1. Calculate percentage using currentAmount vs targetAmount
+    final currentProgress = goal.currentAmount ?? 0.0;
+    final target = goal.targetAmount;
+
+    final pct = target > 0 ? (currentProgress / target).clamp(0.0, 1.0) : 0.0;
+    final isDone = currentProgress >= target && target > 0;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -233,7 +256,7 @@ class _GoalCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                       if (goal.deadline != null)
@@ -248,12 +271,15 @@ class _GoalCard extends StatelessWidget {
                   ),
                 ),
                 // Done badge or percentage
-                if (done)
+                if (isDone)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
+                      color: Color.alphaBlend(
+                        AppColors.success.withValues(alpha: 0.12),
+                        context.colors.card,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -275,7 +301,7 @@ class _GoalCard extends StatelessWidget {
                   )
                 else
                   Text(
-                    '${pct.toStringAsFixed(0)}%',
+                    '${(pct * 100).toStringAsFixed(0)}%',
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -289,11 +315,11 @@ class _GoalCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
-                value: pct / 100,
+                value: pct,
                 minHeight: 8,
-                backgroundColor: AppColors.lightBg,
+                backgroundColor: context.colors.bg,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  done ? AppColors.success : goal.color,
+                  isDone ? AppColors.success : goal.color,
                 ),
               ),
             ),
@@ -302,13 +328,13 @@ class _GoalCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '${CurrencyFormatter.format(goal.amount)} saved',
+                  '${CurrencyFormatter.format(exchangeSvc.convertFromMkd(currentProgress, currency), symbol: symbol)} saved',
                   style: GoogleFonts.inter(
                       fontSize: 11, color: AppColors.muted),
                 ),
                 const Spacer(),
                 Text(
-                  'Target ${CurrencyFormatter.format(goal.targetAmount)}',
+                  'Target ${CurrencyFormatter.format(exchangeSvc.convertFromMkd(target, currency), symbol: symbol)}',
                   style: GoogleFonts.inter(
                       fontSize: 11, color: AppColors.muted),
                 ),

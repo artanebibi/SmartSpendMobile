@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -20,8 +22,8 @@ class WalletDetailScreen extends StatelessWidget {
 
     if (wallet == null) {
       return Scaffold(
-        backgroundColor: AppColors.lightBg,
-        appBar: AppBar(backgroundColor: AppColors.lightBg, elevation: 0),
+        backgroundColor: context.colors.bg,
+        appBar: AppBar(backgroundColor: context.colors.bg, elevation: 0),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -31,9 +33,11 @@ class WalletDetailScreen extends StatelessWidget {
         .where((e) =>
             wallet.members.any((m) => m.name == e.member.name))
         .toList();
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Stack(
           children: [
@@ -42,15 +46,15 @@ class WalletDetailScreen extends StatelessWidget {
                 SliverToBoxAdapter(child: _buildHeader(context, wallet)),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 SliverToBoxAdapter(
-                    child: _buildSummaryCard(wallet)),
+                    child: _buildSummaryCard(wallet, symbol)),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 if (relevantBalances.isNotEmpty)
                   SliverToBoxAdapter(
                       child: _buildBalanceAlert(
-                          context, relevantBalances, provider)),
+                          context, relevantBalances, provider, symbol)),
                 if (relevantBalances.isNotEmpty)
                   const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                SliverToBoxAdapter(child: _buildExpensesHeader()),
+                SliverToBoxAdapter(child: _buildExpensesHeader(context)),
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),
                 if (wallet.expenses.isEmpty)
                   SliverToBoxAdapter(
@@ -59,7 +63,7 @@ class WalletDetailScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.colors.card,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(
@@ -79,7 +83,7 @@ class WalletDetailScreen extends StatelessWidget {
                           const EdgeInsets.symmetric(horizontal: 20),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.colors.card,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: ListView.separated(
@@ -91,7 +95,7 @@ class WalletDetailScreen extends StatelessWidget {
                           itemBuilder: (_, i) {
                             final exp = wallet.expenses.reversed
                                 .toList()[i];
-                            return _ExpenseRow(expense: exp);
+                            return _ExpenseRow(expense: exp, symbol: symbol);
                           },
                         ),
                       ),
@@ -135,12 +139,12 @@ class WalletDetailScreen extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -150,7 +154,7 @@ class WalletDetailScreen extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -160,7 +164,7 @@ class WalletDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(WalletModel wallet) {
+  Widget _buildSummaryCard(WalletModel wallet, String symbol) {
     final spent = wallet.totalSpent;
     final goal = wallet.monthlyGoal;
     final pct =
@@ -205,7 +209,7 @@ class WalletDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  CurrencyFormatter.format(spent),
+                  CurrencyFormatter.format(spent, symbol: symbol),
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -217,7 +221,7 @@ class WalletDetailScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text(
-                      '/ ${CurrencyFormatter.format(goal)} goal',
+                      '/ ${CurrencyFormatter.format(goal, symbol: symbol)} goal',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.55),
@@ -247,15 +251,15 @@ class WalletDetailScreen extends StatelessWidget {
   }
 
   Widget _buildBalanceAlert(BuildContext context,
-      List<dynamic> balances, WalletProvider provider) {
+      List<dynamic> balances, WalletProvider provider, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
+          color: Color.alphaBlend(AppColors.orange.withValues(alpha: 0.10), context.colors.card),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
+          border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,8 +279,8 @@ class WalletDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   isOwed
-                      ? '${e.member.name} owes you ${CurrencyFormatter.format(e.amount)}'
-                      : 'You owe ${e.member.name} ${CurrencyFormatter.format(e.amount.abs())}',
+                      ? '${e.member.name} owes you ${CurrencyFormatter.format(e.amount, symbol: symbol)}'
+                      : 'You owe ${e.member.name} ${CurrencyFormatter.format(e.amount.abs(), symbol: symbol)}',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isOwed
@@ -292,7 +296,7 @@ class WalletDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildExpensesHeader() {
+  Widget _buildExpensesHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Text(
@@ -300,7 +304,7 @@ class WalletDetailScreen extends StatelessWidget {
         style: GoogleFonts.inter(
           fontSize: 15,
           fontWeight: FontWeight.w700,
-          color: AppColors.darkText,
+          color: context.colors.text,
         ),
       ),
     );
@@ -345,8 +349,9 @@ class _AvatarRow extends StatelessWidget {
 }
 
 class _ExpenseRow extends StatelessWidget {
-  const _ExpenseRow({required this.expense});
+  const _ExpenseRow({required this.expense, required this.symbol});
   final WalletExpense expense;
+  final String symbol;
 
   @override
   Widget build(BuildContext context) {
@@ -386,7 +391,7 @@ class _ExpenseRow extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.darkText,
+                    color: context.colors.text,
                   ),
                 ),
                 Text(
@@ -401,17 +406,17 @@ class _ExpenseRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                CurrencyFormatter.format(expense.amount),
+                CurrencyFormatter.format(expense.amount, symbol: symbol),
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.darkText,
+                  color: context.colors.text,
                 ),
               ),
               Text(
                 isMePayer
-                    ? '+${CurrencyFormatter.format(perPerson * (expense.splitWith.length - 1))}'
-                    : '-${CurrencyFormatter.format(perPerson)}',
+                    ? '+${CurrencyFormatter.format(perPerson * (expense.splitWith.length - 1), symbol: symbol)}'
+                    : '-${CurrencyFormatter.format(perPerson, symbol: symbol)}',
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   color: isMePayer ? AppColors.success : AppColors.error,

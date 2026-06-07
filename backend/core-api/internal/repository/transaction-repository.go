@@ -14,7 +14,7 @@ import (
 type ITransactionRepository interface {
 	FindAll(userId string, from time.Time, to time.Time) []model.Transaction
 	FindById(id int64, userId string) (*model.Transaction, error)
-	Save(transaction model.Transaction) error
+	Save(transaction *model.Transaction) error
 	Update(transaction model.Transaction, id int64) error
 	Delete(id int64, userId string) error
 }
@@ -23,7 +23,7 @@ type databaseTransactionRepository struct {
 	db *sql.DB
 }
 
-func (d *databaseTransactionRepository) Save(transaction model.Transaction) error {
+func (d *databaseTransactionRepository) Save(transaction *model.Transaction) error {
 	log.Println("Saving transaction:", transaction.Title)
 
 	if transaction.Type == enum.Income {
@@ -32,11 +32,11 @@ func (d *databaseTransactionRepository) Save(transaction model.Transaction) erro
 			return err
 		}
 
-		_, err = tx.Exec(`
-								INSERT INTO transactions (title, price, date_made, owner_id, category_id, type)
-    					        VALUES ($1, $2, $3, $4, NULL, $5)
-    					        `,
-			transaction.Title, transaction.Price, transaction.DateMade, transaction.OwnerId, transaction.Type)
+		err = tx.QueryRow(`
+           INSERT INTO transactions (title, price, date_made, owner_id, category_id, type)
+           VALUES ($1, $2, $3, $4, NULL, $5) RETURNING id
+       `, transaction.Title, transaction.Price, transaction.DateMade, transaction.OwnerId, transaction.Type).Scan(&transaction.ID)
+
 		if err != nil {
 			tx.Rollback()
 			return err
@@ -63,11 +63,11 @@ func (d *databaseTransactionRepository) Save(transaction model.Transaction) erro
 			return err
 		}
 
-		_, err = tx.Exec(`
-								INSERT INTO transactions (title, price, date_made, owner_id, category_id, type)
-    					        VALUES ($1, $2, $3, $4, $5, $6)
-    					        `,
-			transaction.Title, transaction.Price, transaction.DateMade, transaction.OwnerId, transaction.CategoryId, transaction.Type)
+		err = tx.QueryRow(`
+           INSERT INTO transactions (title, price, date_made, owner_id, category_id, type)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+       `, transaction.Title, transaction.Price, transaction.DateMade, transaction.OwnerId, transaction.CategoryId, transaction.Type).Scan(&transaction.ID)
+
 		if err != nil {
 			tx.Rollback()
 			return err

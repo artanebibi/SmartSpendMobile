@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../core/services/exchange_rate_service.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../../features/transactions/models/transaction_model.dart';
 import 'category_dot.dart';
 
@@ -19,8 +23,13 @@ class TxRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIncome = transaction.isIncome;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final displayPrice = context
+        .watch<ExchangeRateService>()
+        .convertFromMkd(transaction.price, currency);
     final amountText =
-        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.price)}';
+        '${isIncome ? '+' : '-'}${CurrencyFormatter.format(displayPrice, symbol: symbol)}';
 
     return InkWell(
       onTap: onTap,
@@ -28,7 +37,7 @@ class TxRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            CategoryDot(category: transaction.categoryName),
+            CategoryDot(category: transaction.categoryName ?? transaction.type),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -39,7 +48,7 @@ class TxRow extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.darkText,
+                      color: context.colors.text,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -60,7 +69,7 @@ class TxRow extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: isIncome ? AppColors.success : AppColors.darkText,
+                color: isIncome ? AppColors.success : AppColors.error,
               ),
             ),
           ],

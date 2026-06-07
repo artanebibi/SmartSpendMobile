@@ -18,19 +18,21 @@ import (
 var (
 	database db.Service = db.New()
 
-	userRepository        repository.IUserRepository        = repository.NewUserRepository(database)
-	transactionRepository repository.ITransactionRepository = repository.NewTransactionRepository(database)
-	categoryRepository    repository.ICategoryRepository    = repository.NewCategoryRepository(database)
-	statisticsRepository  repository.IStatisticsRepository  = repository.NewStatisticsRepository(database)
-	savingRepository      repository.ISavingRepository      = repository.NewSavingRepository(database)
+	userRepository                repository.IUserRepository                = repository.NewUserRepository(database)
+	transactionRepository         repository.ITransactionRepository         = repository.NewTransactionRepository(database)
+	transactionLocationRepository repository.ITransactionLocationRepository = repository.NewTransactionLocationRepository(database)
+	categoryRepository            repository.ICategoryRepository            = repository.NewCategoryRepository(database)
+	statisticsRepository          repository.IStatisticsRepository          = repository.NewStatisticsRepository(database)
+	savingRepository              repository.ISavingRepository              = repository.NewSavingRepository(database)
 
-	userService        domain.IUserService        = domain.NewUserService(userRepository)
-	jwtService         domain.IJWTService         = domain.NewJWTService()
-	tokenService       domain.ITokenService       = domain.NewTokenService()
-	transactionService domain.ITransactionService = domain.NewTransactionService(transactionRepository)
-	categoryService    domain.ICategoryService    = domain.NewCategoryService(categoryRepository)
-	statisticsService  domain.IStatisticsService  = domain.NewStatisticsService(statisticsRepository)
-	geminiService      domain.IGeminiService      = domain.NewGeminiService()
+	userService                domain.IUserService                = domain.NewUserService(userRepository)
+	jwtService                 domain.IJWTService                 = domain.NewJWTService()
+	tokenService               domain.ITokenService               = domain.NewTokenService()
+	transactionService         domain.ITransactionService         = domain.NewTransactionService(transactionRepository)
+	transactionLocationService domain.ITransactionLocationService = domain.NewTransactionLocationService(transactionLocationRepository)
+	categoryService            domain.ICategoryService            = domain.NewCategoryService(categoryRepository)
+	statisticsService          domain.IStatisticsService          = domain.NewStatisticsService(statisticsRepository)
+	geminiService              domain.IGeminiService              = domain.NewGeminiService()
 
 	applicationUserService        application.IUserAppService                = application.NewUserAppService(userService)
 	applicationTransactionService application.IApplicationTransactionService = application.NewApplicationTransactionService(transactionRepository)
@@ -145,6 +147,5 @@ func (s *Server) RegisterRoutes() http.Handler {
 		saving.PATCH("/:id", s.UpdateSaving)
 		saving.DELETE("/:id", s.DeleteTransaction)
 	}
-
 	return r
 }

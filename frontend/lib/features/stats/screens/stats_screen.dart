@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../providers/stats_provider.dart';
 
 // Chart color palette matching React POC
@@ -62,9 +65,12 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     final stats = context.watch<StatsProvider>();
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final exchangeSvc = context.watch<ExchangeRateService>();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -76,12 +82,48 @@ class _StatsScreenState extends State<StatsScreen> {
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
               )
+            else if (stats.error != null && stats.pieData.isEmpty && stats.monthlyData.isEmpty)
+              SliverFillRemaining(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.bar_chart_outlined,
+                          size: 48, color: AppColors.muted),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Could not load statistics',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
+                          color: context.colors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        stats.error!,
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                            fontSize: 12, color: AppColors.muted),
+                      ),
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: _load,
+                        child: Text('Retry',
+                            style: GoogleFonts.inter(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else if (_tab == 0)
-              SliverToBoxAdapter(child: _buildOverview(stats))
+              SliverToBoxAdapter(child: _buildOverview(stats, symbol, exchangeSvc, currency))
             else if (_tab == 1)
-              SliverToBoxAdapter(child: _buildMonthly(stats))
+              SliverToBoxAdapter(child: _buildMonthly(stats, symbol, exchangeSvc, currency))
             else
-              SliverToBoxAdapter(child: _buildCategories(stats)),
+              SliverToBoxAdapter(child: _buildCategories(stats, symbol, exchangeSvc, currency)),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -91,7 +133,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical:10, horizontal: 20),
       child: Row(
         children: [
           Text(
@@ -99,7 +141,7 @@ class _StatsScreenState extends State<StatsScreen> {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -109,9 +151,9 @@ class _StatsScreenState extends State<StatsScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -121,7 +163,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.darkText,
+                      color: context.colors.text,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -143,7 +185,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -179,7 +221,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Overview Tab ────────────────────────────────────────────────────────────
 
-  Widget _buildOverview(StatsProvider stats) {
+  Widget _buildOverview(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final daysInMonth =
         DateTime(_month.year, _month.month + 1, 0).day.toDouble();
     final avgPerDay = daysInMonth > 0 ? stats.totalExpenses / daysInMonth : 0;
@@ -200,21 +243,27 @@ class _StatsScreenState extends State<StatsScreen> {
             children: [
               _StatCard(
                 label: 'Total Income',
-                value: CurrencyFormatter.format(stats.totalIncome),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(stats.totalIncome, currency),
+                    symbol: symbol),
                 valueColor: AppColors.success,
                 sub: '↑ This month',
                 subColor: AppColors.success,
               ),
               _StatCard(
                 label: 'Total Expenses',
-                value: CurrencyFormatter.format(stats.totalExpenses),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(stats.totalExpenses, currency),
+                    symbol: symbol),
                 valueColor: AppColors.error,
                 sub: '↓ This month',
                 subColor: AppColors.error,
               ),
               _StatCard(
                 label: 'Net Savings',
-                value: CurrencyFormatter.format(stats.netSavings),
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(stats.netSavings, currency),
+                    symbol: symbol),
                 valueColor: stats.netSavings >= 0
                     ? AppColors.success
                     : AppColors.error,
@@ -225,8 +274,9 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
               _StatCard(
                 label: 'Avg / Day',
-                value: CurrencyFormatter.format(avgPerDay.toDouble()),
-                valueColor: AppColors.darkText,
+                value: CurrencyFormatter.format(
+                    exchangeSvc.convertFromMkd(avgPerDay.toDouble(), currency),
+                    symbol: symbol),
                 sub: 'Expenses',
                 subColor: AppColors.muted,
               ),
@@ -237,7 +287,7 @@ class _StatsScreenState extends State<StatsScreen> {
         const SizedBox(height: 16),
         _buildPieCard(stats),
         const SizedBox(height: 16),
-        _buildBarCard(stats),
+        _buildBarCard(stats, symbol, exchangeSvc, currency),
       ],
     );
   }
@@ -250,7 +300,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -261,7 +311,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -314,7 +364,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                   e.value.category,
                                   style: GoogleFonts.inter(
                                     fontSize: 11,
-                                    color: AppColors.darkText,
+                                    color: context.colors.text,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -324,7 +374,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.darkText,
+                                  color: context.colors.text,
                                 ),
                               ),
                             ],
@@ -341,7 +391,8 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _buildBarCard(StatsProvider stats) {
+  Widget _buildBarCard(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final hasData = stats.monthlyData.isNotEmpty;
 
     return Padding(
@@ -349,7 +400,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -360,7 +411,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -369,7 +420,7 @@ class _StatsScreenState extends State<StatsScreen> {
             else ...[
               SizedBox(
                 height: 140,
-                child: _buildBarChart(stats, showIncome: false),
+                child: _buildBarChart(stats, symbol, exchangeSvc, currency, showIncome: false),
               ),
               const SizedBox(height: 12),
               // Legend
@@ -391,7 +442,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Monthly Tab ─────────────────────────────────────────────────────────────
 
-  Widget _buildMonthly(StatsProvider stats) {
+  Widget _buildMonthly(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     final hasData = stats.monthlyData.isNotEmpty;
 
     return Padding(
@@ -399,7 +451,7 @@ class _StatsScreenState extends State<StatsScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -410,7 +462,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 8),
@@ -425,7 +477,7 @@ class _StatsScreenState extends State<StatsScreen> {
             else
               SizedBox(
                 height: 220,
-                child: _buildBarChart(stats, showIncome: false),
+                child: _buildBarChart(stats, symbol, exchangeSvc, currency, showIncome: false),
               ),
           ],
         ),
@@ -435,7 +487,8 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Categories Tab ───────────────────────────────────────────────────────────
 
-  Widget _buildCategories(StatsProvider stats) {
+  Widget _buildCategories(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency) {
     if (stats.pieData.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(20),
@@ -455,7 +508,7 @@ class _StatsScreenState extends State<StatsScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.card,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -477,7 +530,7 @@ class _StatsScreenState extends State<StatsScreen> {
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                     ),
@@ -486,12 +539,14 @@ class _StatsScreenState extends State<StatsScreen> {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.darkText,
+                        color: context.colors.text,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      CurrencyFormatter.format(slice.amount),
+                      CurrencyFormatter.format(
+                          exchangeSvc.convertFromMkd(slice.amount, currency),
+                          symbol: symbol),
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppColors.muted,
@@ -505,7 +560,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: LinearProgressIndicator(
                     value: pct.clamp(0, 1),
                     minHeight: 6,
-                    backgroundColor: AppColors.lightBg,
+                    backgroundColor: context.colors.bg,
                     valueColor: AlwaysStoppedAnimation<Color>(color),
                   ),
                 ),
@@ -519,7 +574,9 @@ class _StatsScreenState extends State<StatsScreen> {
 
   // ─── Shared bar chart builder ─────────────────────────────────────────────────
 
-  Widget _buildBarChart(StatsProvider stats, {required bool showIncome}) {
+  Widget _buildBarChart(StatsProvider stats, String symbol,
+      ExchangeRateService exchangeSvc, String currency,
+      {required bool showIncome}) {
     final data = stats.monthlyData;
     final maxY = data.fold(0.0, (m, b) => m > b.expense ? m : b.expense);
     final yInterval = maxY > 0 ? (maxY / 4).ceilToDouble() : 500;
@@ -597,14 +654,16 @@ class _StatsScreenState extends State<StatsScreen> {
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => AppColors.darkText,
+            getTooltipColor: (_) => context.colors.text,
             tooltipRoundedRadius: 8,
             getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-              CurrencyFormatter.format(rod.toY),
+              CurrencyFormatter.format(
+                  exchangeSvc.convertFromMkd(rod.toY, currency),
+                  symbol: symbol),
               GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: context.colors.bg,
               ),
             ),
           ),
@@ -632,14 +691,14 @@ class _StatCard extends StatelessWidget {
   const _StatCard({
     required this.label,
     required this.value,
-    required this.valueColor,
+    this.valueColor,
     required this.sub,
     required this.subColor,
   });
 
   final String label;
   final String value;
-  final Color valueColor;
+  final Color? valueColor;
   final String sub;
   final Color subColor;
 
@@ -648,7 +707,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -664,7 +723,7 @@ class _StatCard extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: valueColor,
+              color: valueColor ?? context.colors.text,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

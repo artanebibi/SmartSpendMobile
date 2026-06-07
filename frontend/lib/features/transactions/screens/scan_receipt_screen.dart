@@ -9,6 +9,7 @@ import '../../../core/network/api_endpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
+import '../receipt_processing_loader.dart';
 import 'add_transaction_screen.dart';
 
 class ScanReceiptScreen extends StatefulWidget {
@@ -20,6 +21,9 @@ class ScanReceiptScreen extends StatefulWidget {
 
 class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   bool _processing = false;
+  bool _uploadSuccess = false;
+  TransactionModel? _scannedTx;
+  Map<String, dynamic>? _scannedLocData;
   final _picker = ImagePicker();
 
   Future<void> _capture({bool fromGallery = false}) async {
@@ -29,7 +33,12 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
     );
     if (file == null || !mounted) return;
 
-    setState(() => _processing = true);
+    setState(() {
+      _processing = true;
+      _uploadSuccess = false;
+      _scannedTx = null;
+      _scannedLocData = null;
+    });
 
     try {
       final dio = ApiClient.instance;
@@ -41,10 +50,12 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         ApiEndpoints.transactionReceipt,
         data: formData,
       );
+      final responseBody = res.data as Map<String, dynamic>;
+      final txData = responseBody['transaction'] as Map<String, dynamic>;
+      final locData = responseBody['location'] as Map<String, dynamic>?;
 
-      final data = res.data as Map<String, dynamic>;
       final catProvider = context.read<TransactionProvider>();
-      final catId = data['category_id'] as int?;
+      final catId = (txData['category_id'] as num?)?.toInt();
       final catName = catProvider.categories
           .firstWhere(
             (c) => c.id == catId,
@@ -54,29 +65,54 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
 
       final tx = TransactionModel(
         id: 0,
-        title: data['title'] ?? '',
-        price: (data['price'] as num?)?.toDouble() ?? 0,
+        title: txData['title'] ?? '',
+        price: (txData['price'] as num?)?.toDouble() ?? 0,
         dateMade: DateTime.now(),
         categoryId: catId,
         categoryName: catName,
-        type: data['type'] ?? 'Expense',
+        type: txData['type'] ?? 'Expense',
       );
 
       if (mounted) {
-        setState(() => _processing = false);
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => AddTransactionScreen(initial: tx),
-          ),
-        );
+        setState(() {
+          _scannedTx = tx;
+          _scannedLocData = locData;
+          _uploadSuccess = true;
+        });
       }
     } catch (_) {
       if (mounted) setState(() => _processing = false);
     }
   }
 
+  void _onLoaderCompleted() {
+    if (!mounted || _scannedTx == null) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => AddTransactionScreen(
+          initial: _scannedTx!,
+          initialLocation: _scannedLocData,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_processing) {
+      return Scaffold(
+        body: ReceiptProcessingLoader(
+          autoDemo: false,
+          success: _uploadSuccess,
+          successTitle: 'Receipt scanned',
+          successSubtitle: _scannedTx != null
+              ? '${_scannedTx!.title} · ${_scannedTx!.categoryName ?? _scannedTx!.type}'
+              : null,
+          onCompleted: _onLoaderCompleted,
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0C0C0E),
       body: SafeArea(
@@ -155,14 +191,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                             // Corner brackets
                             ..._corners(),
                             // Center content
-                            if (_processing)
-                              const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                ),
-                              )
-                            else
-                              Center(
+                            Center(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [

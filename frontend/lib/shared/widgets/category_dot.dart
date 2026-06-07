@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
 const Map<String, String> categoryEmoji = {
-  'Food': '🍔',
-  'Salary': '💼',
-  'Income': '💼',
-  'Transport': '🚌',
-  'Shopping': '🛍',
-  'Entertainment': '🎬',
-  'Health': '💊',
-  'Groceries': '🛒',
-  'Rent': '🏠',
-  'Investment': '📈',
-  'Freelance': '💻',
-  'Education': '📚',
-  'Other': '✨',
+  'Groceries':             '🛒',
+  'Health':                '💊',
+  'Home':                  '🏠',
+  'Restaurants & Dining':  '🍔',
+  'Education':             '📚',
+  'Travel':                '✈️',
+  'Entertainment':         '🎬',
+  'Other':                 '✨',
+  'Bills & Subscriptions': '💳',
+  'Transportation':        '🚌',
+  'Electronics':           '📱',
+  'Income':                '💸'
 };
 
 class CategoryDot extends StatelessWidget {

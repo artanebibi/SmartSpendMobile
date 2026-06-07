@@ -98,6 +98,7 @@ extension ApiClientX on Dio {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
+    await prefs.remove('refresh_token_expiry');
   }
 
   static Future<String?> getAccessToken() async {

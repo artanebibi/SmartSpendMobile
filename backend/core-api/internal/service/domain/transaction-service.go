@@ -30,7 +30,7 @@ func (t *TransactionService) FindById(id int64, userId string) (*model.Transacti
 	return t.transactionRepository.FindById(id, userId)
 }
 func (t *TransactionService) Save(transaction *model.Transaction) error {
-	return t.transactionRepository.Save(*transaction)
+	return t.transactionRepository.Save(transaction)
 }
 func (t *TransactionService) Delete(transactionId int64, userId string) error {
 	return t.transactionRepository.Delete(transactionId, userId)

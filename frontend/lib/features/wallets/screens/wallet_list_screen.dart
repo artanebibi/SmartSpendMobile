@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -17,9 +19,11 @@ class WalletListScreen extends StatelessWidget {
     final wallets = provider.wallets;
     final totalOwed = provider.totalOwed;
     final totalOwedToMe = provider.totalOwedToMe;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -27,7 +31,7 @@ class WalletListScreen extends StatelessWidget {
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             if (totalOwed > 0 || totalOwedToMe > 0)
               SliverToBoxAdapter(
-                child: _buildSettlementAlert(context, totalOwed, totalOwedToMe),
+                child: _buildSettlementAlert(context, totalOwed, totalOwedToMe, symbol),
               ),
             if (totalOwed > 0 || totalOwedToMe > 0)
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -49,6 +53,7 @@ class WalletListScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _WalletCard(
                         wallet: wallets[i],
+                        symbol: symbol,
                         onTap: () =>
                             context.push('/home/wallets/${wallets[i].id}'),
                       ),
@@ -66,7 +71,7 @@ class WalletListScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical:10, horizontal: 20),
       child: Row(
         children: [
           Text(
@@ -74,7 +79,7 @@ class WalletListScreen extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           const Spacer(),
@@ -97,15 +102,15 @@ class WalletListScreen extends StatelessWidget {
   }
 
   Widget _buildSettlementAlert(
-      BuildContext context, double totalOwed, double totalOwedToMe) {
+      BuildContext context, double totalOwed, double totalOwedToMe, String symbol) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
+          color: Color.alphaBlend(AppColors.orange.withValues(alpha: 0.10), context.colors.card),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
+          border: Border.all(color: AppColors.orange.withValues(alpha: 0.30)),
         ),
         child: Row(
           children: [
@@ -113,7 +118,7 @@ class WalletListScreen extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFFFED7AA),
+                color: AppColors.orange.withValues(alpha: 0.20),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.account_balance_wallet_outlined,
@@ -126,7 +131,7 @@ class WalletListScreen extends StatelessWidget {
                 children: [
                   if (totalOwed > 0)
                     Text(
-                      'You owe ${CurrencyFormatter.format(totalOwed)} total',
+                      'You owe ${CurrencyFormatter.format(totalOwed, symbol: symbol)} total',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -135,7 +140,7 @@ class WalletListScreen extends StatelessWidget {
                     ),
                   if (totalOwedToMe > 0)
                     Text(
-                      '${CurrencyFormatter.format(totalOwedToMe)} owed to you',
+                      '${CurrencyFormatter.format(totalOwedToMe, symbol: symbol)} owed to you',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -171,8 +176,9 @@ class WalletListScreen extends StatelessWidget {
 }
 
 class _WalletCard extends StatelessWidget {
-  const _WalletCard({required this.wallet, required this.onTap});
+  const _WalletCard({required this.wallet, required this.symbol, required this.onTap});
   final WalletModel wallet;
+  final String symbol;
   final VoidCallback onTap;
 
   @override
@@ -188,7 +194,7 @@ class _WalletCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -206,7 +212,7 @@ class _WalletCard extends StatelessWidget {
                         style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.darkText,
+                          color: context.colors.text,
                         ),
                       ),
                       Text(
@@ -223,11 +229,11 @@ class _WalletCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      CurrencyFormatter.format(spent),
+                      CurrencyFormatter.format(spent, symbol: symbol),
                       style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.darkText,
+                        color: context.colors.text,
                       ),
                     ),
                     Text(
@@ -248,7 +254,7 @@ class _WalletCard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: pct,
                   minHeight: 6,
-                  backgroundColor: AppColors.lightBg,
+                  backgroundColor: context.colors.bg,
                   valueColor: const AlwaysStoppedAnimation<Color>(
                       AppColors.primary),
                 ),
@@ -257,7 +263,7 @@ class _WalletCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    '${CurrencyFormatter.format(spent)} of ${CurrencyFormatter.format(goal!)} goal',
+                    '${CurrencyFormatter.format(spent, symbol: symbol)} of ${CurrencyFormatter.format(goal!, symbol: symbol)} goal',
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       color: AppColors.muted,

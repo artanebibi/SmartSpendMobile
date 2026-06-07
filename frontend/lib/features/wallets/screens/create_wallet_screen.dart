@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -209,12 +210,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.card,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: context.colors.border),
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: AppColors.darkText),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
             ),
           ),
           const SizedBox(width: 12),
@@ -223,7 +224,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
         ],
@@ -254,14 +255,14 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
       controller: controller,
       keyboardType: keyboardType,
       onSubmitted: onSubmitted,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
+      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
             GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
         prefixIcon: prefix,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: context.colors.card,
         contentPadding: prefix != null
             ? const EdgeInsets.symmetric(vertical: 14)
             : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -327,7 +328,7 @@ class _MemberChip extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.darkText,
+              color: context.colors.text,
             ),
           ),
           if (onRemove != null) ...[

@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_theme_colors.dart';
+import '../../../core/theme/theme_provider.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../savings/providers/savings_provider.dart';
 import '../../transactions/providers/transaction_provider.dart';
@@ -19,7 +22,7 @@ class ProfileScreen extends StatelessWidget {
     final user = auth.user;
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -42,14 +45,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 _SettingsRow(
                   icon: Icons.notifications_outlined,
-                  iconBg: const Color(0xFFF0F9FF),
+                  iconBg: Color.alphaBlend(AppColors.cyan.withValues(alpha: 0.12), context.colors.card),
                   iconColor: AppColors.cyan,
                   label: 'Notification Settings',
                   onTap: () {},
                 ),
                 _SettingsRow(
                   icon: Icons.lock_outline_rounded,
-                  iconBg: const Color(0xFFF5F3FF),
+                  iconBg: Color.alphaBlend(AppColors.purple.withValues(alpha: 0.12), context.colors.card),
                   iconColor: AppColors.purple,
                   label: 'Privacy',
                   onTap: () {},
@@ -78,14 +81,14 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 _SettingsRow(
                   icon: Icons.palette_outlined,
-                  iconBg: const Color(0xFFFFF7ED),
+                  iconBg: Color.alphaBlend(AppColors.orange.withValues(alpha: 0.12), context.colors.card),
                   iconColor: AppColors.orange,
-                  label: 'Theme',
-                  onTap: () {},
+                  label: context.watch<ThemeProvider>().isDark ? 'Dark Mode' : 'Light Mode',
+                  onTap: () => context.read<ThemeProvider>().toggle(),
                 ),
                 _SettingsRow(
                   icon: Icons.language_rounded,
-                  iconBg: const Color(0xFFF0FDF4),
+                  iconBg: Color.alphaBlend(AppColors.success.withValues(alpha: 0.12), context.colors.card),
                   iconColor: AppColors.success,
                   label: 'Language',
                   onTap: () {},
@@ -99,21 +102,21 @@ class ProfileScreen extends StatelessWidget {
               child: _buildSettingsGroup([
                 _SettingsRow(
                   icon: Icons.help_outline_rounded,
-                  iconBg: const Color(0xFFF0F9FF),
+                  iconBg: Color.alphaBlend(AppColors.cyan.withValues(alpha: 0.12), context.colors.card),
                   iconColor: AppColors.cyan,
                   label: 'Help & Support',
                   onTap: () {},
                 ),
                 _SettingsRow(
                   icon: Icons.star_outline_rounded,
-                  iconBg: const Color(0xFFFFFBEB),
+                  iconBg: Color.alphaBlend(AppColors.amber.withValues(alpha: 0.12), context.colors.card),
                   iconColor: AppColors.amber,
                   label: 'Rate App',
                   onTap: () {},
                 ),
                 _SettingsRow(
                   icon: Icons.description_outlined,
-                  iconBg: AppColors.lightBg,
+                  iconBg: context.colors.bg,
                   iconColor: AppColors.muted,
                   label: 'Terms & Privacy',
                   onTap: () {},
@@ -131,14 +134,16 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      child: Text(
-        'Profile',
-        style: GoogleFonts.inter(
-          fontSize: 22,
-          fontWeight: FontWeight.w800,
-          color: AppColors.darkText,
+    return Builder(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Text(
+          'Profile',
+          style: GoogleFonts.inter(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: context.colors.text,
+          ),
         ),
       ),
     );
@@ -269,11 +274,12 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsGroup(List<Widget> rows) {
-    return Padding(
+    return Builder(
+      builder: (context) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(16),
         ),
         child: ListView.separated(
@@ -285,7 +291,7 @@ class ProfileScreen extends StatelessWidget {
           itemBuilder: (_, i) => rows[i],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildSignOutButton(BuildContext context, AuthProvider auth) {
@@ -326,37 +332,53 @@ class ProfileScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Select Currency',
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
-              ),
+      builder: (ctx) {
+        bool updating = false;
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Currency',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: context.colors.text,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...currencies.map(
+                  (c) => ListTile(
+                    title: Text(c,
+                        style: GoogleFonts.inter(
+                            fontSize: 14, fontWeight: FontWeight.w500)),
+                    onTap: updating
+                        ? null
+                        : () async {
+                            setSheetState(() => updating = true);
+                            final ok = await ctx
+                                .read<ProfileProvider>()
+                                .updateCurrency(c);
+                            if (ok && context.mounted) {
+                              context
+                                  .read<AuthProvider>()
+                                  .updatePreferredCurrency(c);
+                              context
+                                  .read<ExchangeRateService>()
+                                  .prefetchRate(c);
+                            }
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            ...currencies.map(
-              (c) => ListTile(
-                title: Text(c,
-                    style: GoogleFonts.inter(
-                        fontSize: 14, fontWeight: FontWeight.w500)),
-                onTap: () async {
-                  await context
-                      .read<ProfileProvider>()
-                      .updateCurrency(c);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -389,7 +411,7 @@ class ProfileScreen extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 16),
@@ -402,10 +424,16 @@ class ProfileScreen extends StatelessWidget {
               height: 52,
               child: ElevatedButton(
                 onPressed: () async {
-                  await context.read<ProfileProvider>().updateProfile(
+                  final ok = await context.read<ProfileProvider>().updateProfile(
                         firstName: firstCtrl.text.trim(),
                         lastName: lastCtrl.text.trim(),
                       );
+                  if (ok && context.mounted) {
+                    context.read<AuthProvider>().updateUserName(
+                          firstCtrl.text.trim(),
+                          lastCtrl.text.trim(),
+                        );
+                  }
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
                 style: ElevatedButton.styleFrom(
@@ -427,27 +455,29 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _sheetInput(TextEditingController ctrl, String label) {
-    return TextField(
-      controller: ctrl,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkText),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle:
-            GoogleFonts.inter(fontSize: 13, color: AppColors.muted),
-        filled: true,
-        fillColor: AppColors.lightBg,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
+    return Builder(
+      builder: (context) => TextField(
+        controller: ctrl,
+        style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle:
+              GoogleFonts.inter(fontSize: 13, color: AppColors.muted),
+          filled: true,
+          fillColor: context.colors.bg,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: context.colors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: context.colors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
         ),
       ),
     );
@@ -465,7 +495,7 @@ class _StatCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.card,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -475,7 +505,7 @@ class _StatCard extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: AppColors.darkText,
+                color: context.colors.text,
               ),
             ),
             const SizedBox(height: 2),
@@ -534,7 +564,7 @@ class _SettingsRow extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.darkText,
+                  color: context.colors.text,
                 ),
               ),
             ),
