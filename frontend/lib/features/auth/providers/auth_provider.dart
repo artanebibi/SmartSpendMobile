@@ -139,6 +139,12 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateUserName(String firstName, String lastName) {
+    if (_user == null) return;
+    _user = _user!.copyWith(firstName: firstName, lastName: lastName);
+    notifyListeners();
+  }
+
   Future<void> refreshBalances() async {
     if (_user == null) return;
     try {

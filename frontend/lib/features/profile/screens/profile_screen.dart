@@ -424,10 +424,16 @@ class ProfileScreen extends StatelessWidget {
               height: 52,
               child: ElevatedButton(
                 onPressed: () async {
-                  await context.read<ProfileProvider>().updateProfile(
+                  final ok = await context.read<ProfileProvider>().updateProfile(
                         firstName: firstCtrl.text.trim(),
                         lastName: lastCtrl.text.trim(),
                       );
+                  if (ok && context.mounted) {
+                    context.read<AuthProvider>().updateUserName(
+                          firstCtrl.text.trim(),
+                          lastCtrl.text.trim(),
+                        );
+                  }
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
                 style: ElevatedButton.styleFrom(
