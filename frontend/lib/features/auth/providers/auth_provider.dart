@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -23,6 +24,7 @@ class AuthProvider extends ChangeNotifier {
   final _dio = ApiClient.instance;
   final _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    clientId: Platform.isIOS ? dotenv.env['GOOGLE_IOS_CLIENT_ID'] : null,
     serverClientId: dotenv.env['GOOGLE_CLIENT_ID'],
   );
 
@@ -111,9 +113,27 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signInWithApple() async {
     _setLoading(true);
     try {
-      // Apple Sign In will be wired up per-platform
-      // Placeholder — real implementation uses sign_in_with_apple package
-      _error = 'Apple sign-in not yet configured on this platform';
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+      final identityToken = credential.identityToken;
+      if (identityToken == null) throw Exception('Missing Apple identity token');
+
+      final res = await _dio.post(
+        ApiEndpoints.authApple,
+        data: {'identity_token': identityToken},
+      );
+
+      await _handleAuthResponse(res.data);
+      _setLoading(false);
+      return true;
+    } on DioException catch (e) {
+      debugPrint('[Auth] Apple DioException: status=${e.response?.statusCode} body=${e.response?.data}');
+      final responseData = e.response?.data;
+      _error = (responseData is Map ? responseData['message'] as String? : null) ?? 'Apple sign-in failed';
       _setLoading(false);
       return false;
     } catch (e) {

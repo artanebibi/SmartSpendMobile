@@ -2,6 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.512752411720-67hfuucfos6h100kbvcanh4jps4kq863</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>SmartSpend needs camera access to scan receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SmartSpend needs photo library access to attach receipts.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>SmartSpend needs permission to save images to your photo library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
