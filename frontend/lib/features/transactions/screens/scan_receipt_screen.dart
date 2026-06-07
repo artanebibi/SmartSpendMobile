@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,6 @@ import '../../../core/theme/app_colors.dart';
 import '../models/transaction_model.dart';
 import '../providers/transaction_provider.dart';
 import '../receipt_processing_loader.dart';
-import 'add_transaction_screen.dart';
 
 class ScanReceiptScreen extends StatefulWidget {
   const ScanReceiptScreen({super.key});
@@ -81,19 +81,21 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _processing = false);
+      if (!mounted) return;
+      setState(() => _processing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not read receipt. Please try again.'),
+        ),
+      );
     }
   }
 
   void _onLoaderCompleted() {
     if (!mounted || _scannedTx == null) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => AddTransactionScreen(
-          initial: _scannedTx!,
-          initialLocation: _scannedLocData,
-        ),
-      ),
+    context.pushReplacement(
+      '/home/transactions/add',
+      extra: {'tx': _scannedTx!, 'loc': _scannedLocData},
     );
   }
 
