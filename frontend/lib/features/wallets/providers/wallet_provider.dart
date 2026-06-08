@@ -106,6 +106,8 @@ class WalletProvider extends ChangeNotifier {
           .whereType<Map<String, dynamic>>()
           .map(WalletModel.fromListJson)
           .toList();
+      notifyListeners();
+      await Future.wait(_wallets.map((w) => loadWalletDetail(w.id)));
     } on DioException catch (e) {
       _error = e.response?.data?['error']?.toString() ?? e.message;
     } finally {

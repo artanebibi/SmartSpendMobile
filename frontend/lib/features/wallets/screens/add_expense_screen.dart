@@ -351,6 +351,15 @@ class _SplitViewState extends State<_SplitView> {
     super.dispose();
   }
 
+  double _inputWidth(String text) {
+    const double charWidth = 9.0;
+    const double padding = 24.0;
+    const double minWidth = 80.0;
+    const double maxWidth = 140.0;
+    final computed = text.length * charWidth + padding;
+    return computed.clamp(minWidth, maxWidth);
+  }
+
   double get _customTotal => _controllers.fold(
         0.0,
         (sum, c) => sum + (double.tryParse(c.text) ?? 0.0),
@@ -584,52 +593,60 @@ class _SplitViewState extends State<_SplitView> {
                                   ),
                                 ),
                                 if (_isCustom)
-                                  SizedBox(
-                                    width: 90,
-                                    child: TextField(
-                                      controller: _controllers[i],
-                                      keyboardType: const TextInputType
-                                          .numberWithOptions(decimal: true),
-                                      textAlign: TextAlign.right,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: context.colors.text,
-                                      ),
-                                      decoration: InputDecoration(
-                                        prefixText: symbol,
-                                        prefixStyle: GoogleFonts.inter(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        symbol,
+                                        style: GoogleFonts.inter(
                                           fontSize: 13,
                                           color: AppColors.muted,
                                         ),
-                                        isDense: true,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 8),
-                                        filled: true,
-                                        fillColor: context.colors.bg,
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                              color: AppColors.border),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                              color: AppColors.border),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                              color: AppColors.primary,
-                                              width: 1.5),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      SizedBox(
+                                        width: _inputWidth(_controllers[i].text),
+                                        child: TextField(
+                                          controller: _controllers[i],
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(decimal: true),
+                                          textAlign: TextAlign.right,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: context.colors.text,
+                                          ),
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 10, vertical: 8),
+                                            filled: true,
+                                            fillColor: context.colors.bg,
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: AppColors.border),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: AppColors.border),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              borderSide: const BorderSide(
+                                                  color: AppColors.primary,
+                                                  width: 1.5),
+                                            ),
+                                          ),
+                                          onChanged: (_) => setState(() {}),
                                         ),
                                       ),
-                                      onChanged: (_) => setState(() {}),
-                                    ),
+                                    ],
                                   )
                                 else
                                   Text(
