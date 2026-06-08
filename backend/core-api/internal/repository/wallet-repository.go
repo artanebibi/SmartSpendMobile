@@ -224,7 +224,8 @@ func (d *databaseWalletRepository) GetWalletTransactions(walletID int64) ([]*Wal
 			&tx.Transaction.CategoryId, &tx.Transaction.Type,
 		)
 		if err != nil {
-			continue // In production, log this error
+			log.Printf("GetWalletTransactions: scan failed for wallet %d: %v", walletID, err)
+			continue
 		}
 
 		// Fetch the associated splits
@@ -233,6 +234,7 @@ func (d *databaseWalletRepository) GetWalletTransactions(walletID int64) ([]*Wal
 			tx.ID,
 		)
 		if err != nil {
+			log.Printf("GetWalletTransactions: split query failed for wallet_tx %d: %v", tx.ID, err)
 			continue
 		}
 

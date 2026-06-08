@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
-import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
 class CreateWalletScreen extends StatefulWidget {
@@ -17,61 +16,23 @@ class CreateWalletScreen extends StatefulWidget {
 
 class _CreateWalletScreenState extends State<CreateWalletScreen> {
   final _nameController = TextEditingController();
-  final _goalController = TextEditingController();
-  final _memberController = TextEditingController();
-  final List<String> _memberNames = [];
+  bool _saving = false;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _goalController.dispose();
-    _memberController.dispose();
     super.dispose();
   }
 
-  void _addMember() {
-    final name = _memberController.text.trim();
-    if (name.isEmpty || _memberNames.contains(name)) return;
-    setState(() {
-      _memberNames.add(name);
-      _memberController.clear();
-    });
-  }
-
-  void _removeMember(String name) {
-    setState(() => _memberNames.remove(name));
-  }
-
-  void _create() {
+  Future<void> _create() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
-
-    final goal = double.tryParse(_goalController.text);
-    final members = [
-      kMockMe,
-      ..._memberNames.map((n) => WalletMember(
-            name: n,
-            color: _memberColor(_memberNames.indexOf(n)),
-          )),
-    ];
-
-    context.read<WalletProvider>().addWallet(
-          name: name,
-          monthlyGoal: goal,
-          members: members,
-        );
-    context.pop();
-  }
-
-  Color _memberColor(int index) {
-    const colors = [
-      Color(0xFF10B981),
-      Color(0xFF8B5CF6),
-      Color(0xFFF97316),
-      Color(0xFFEC4899),
-      Color(0xFF0EA5E9),
-    ];
-    return colors[index % colors.length];
+    setState(() => _saving = true);
+    final wallet =
+        await context.read<WalletProvider>().createWallet(name);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (wallet != null) context.pop();
   }
 
   @override
@@ -95,84 +56,20 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                       controller: _nameController,
                       hint: 'e.g. Apartment, Road Trip',
                     ),
-                    const SizedBox(height: 16),
-                    _sectionLabel('MONTHLY GOAL (OPTIONAL)'),
-                    const SizedBox(height: 6),
-                    _buildInput(
-                      controller: _goalController,
-                      hint: '0.00',
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      prefix: Padding(
-                        padding: const EdgeInsets.only(left: 14, right: 6),
-                        child: Text('\$',
-                            style: GoogleFonts.inter(
-                                fontSize: 15,
-                                color: AppColors.muted,
-                                fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'An invite code will be generated automatically. Share it with others so they can join.',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.muted,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    _sectionLabel('INVITE MEMBERS'),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildInput(
-                            controller: _memberController,
-                            hint: 'Enter name',
-                            onSubmitted: (_) => _addMember(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: _addMember,
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.person_add_rounded,
-                                color: Colors.white, size: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_memberNames.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _MemberChip(
-                            name: kMockMe.name,
-                            color: kMockMe.color,
-                            isMe: true,
-                          ),
-                          ..._memberNames.asMap().entries.map(
-                                (e) => _MemberChip(
-                                  name: e.value,
-                                  color: _memberColor(e.key),
-                                  onRemove: () => _removeMember(e.value),
-                                ),
-                              ),
-                        ],
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 12),
-                      _MemberChip(
-                          name: kMockMe.name,
-                          color: kMockMe.color,
-                          isMe: true),
-                    ],
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _create,
+                        onPressed: _saving ? null : _create,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -180,12 +77,19 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: Text(
-                          'Create Wallet',
-                          style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600),
-                        ),
+                        child: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : Text(
+                                'Create Wallet',
+                                style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -247,25 +151,17 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
   Widget _buildInput({
     required TextEditingController controller,
     required String hint,
-    TextInputType? keyboardType,
-    Widget? prefix,
-    ValueChanged<String>? onSubmitted,
   }) {
     return TextField(
       controller: controller,
-      keyboardType: keyboardType,
-      onSubmitted: onSubmitted,
       style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle:
-            GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
-        prefixIcon: prefix,
+        hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
         filled: true,
         fillColor: context.colors.card,
-        contentPadding: prefix != null
-            ? const EdgeInsets.symmetric(vertical: 14)
-            : const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
@@ -279,67 +175,6 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> {
           borderSide:
               const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-      ),
-    );
-  }
-}
-
-class _MemberChip extends StatelessWidget {
-  const _MemberChip({
-    required this.name,
-    required this.color,
-    this.isMe = false,
-    this.onRemove,
-  });
-  final String name;
-  final Color color;
-  final bool isMe;
-  final VoidCallback? onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Center(
-              child: Text(
-                name[0].toUpperCase(),
-                style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            isMe ? '$name (you)' : name,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: context.colors.text,
-            ),
-          ),
-          if (onRemove != null) ...[
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: onRemove,
-              child: const Icon(Icons.close_rounded,
-                  size: 14, color: AppColors.muted),
-            ),
-          ],
-        ],
       ),
     );
   }

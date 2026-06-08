@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
 class SettleScreen extends StatelessWidget {
@@ -54,7 +55,7 @@ class SettleScreen extends StatelessWidget {
                   ),
                 ),
               )
-            else ...[
+            else
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverList(
@@ -64,47 +65,16 @@ class SettleScreen extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _BalanceCard(
-                          memberName: entry.member.name,
-                          memberColor: entry.member.color,
-                          amount: entry.amount,
-                          wallets: entry.wallets,
-                          onSettle: () =>
-                              provider.settleWith(entry.member.name),
+                          entry: entry,
+                          onSettle: () => provider.settleWith(entry),
                         ),
+
                       );
                     },
                     childCount: balances.length,
                   ),
                 ),
               ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton(
-                      onPressed: () => provider.markAllSettled(),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                            color: AppColors.primary, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: Text(
-                        'Mark All as Settled',
-                        style: GoogleFonts.inter(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
@@ -217,24 +187,29 @@ class SettleScreen extends StatelessWidget {
   }
 }
 
-class _BalanceCard extends StatelessWidget {
+class _BalanceCard extends StatefulWidget {
   const _BalanceCard({
-    required this.memberName,
-    required this.memberColor,
-    required this.amount,
-    required this.wallets,
+    required this.entry,
     required this.onSettle,
   });
-  final String memberName;
-  final Color memberColor;
-  final double amount;
-  final Set<String> wallets;
-  final VoidCallback onSettle;
+
+  final NetEntry entry;
+  final Future<bool> Function() onSettle;
+
+  @override
+  State<_BalanceCard> createState() => _BalanceCardState();
+}
+
+class _BalanceCardState extends State<_BalanceCard> {
+  bool _settling = false;
 
   @override
   Widget build(BuildContext context) {
-    final iOwe = amount < 0;
-    final absAmount = amount.abs();
+    final iOwe = widget.entry.amount < 0;
+    final absAmount = widget.entry.amount.abs();
+    final memberName = widget.entry.member.name.isNotEmpty
+        ? widget.entry.member.name
+        : widget.entry.member.userId;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -251,12 +226,12 @@ class _BalanceCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: memberColor,
+                  color: widget.entry.member.color,
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
-                    memberName[0].toUpperCase(),
+                    widget.entry.member.initials,
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -281,7 +256,7 @@ class _BalanceCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      wallets.join(', '),
+                      widget.entry.walletNames.join(', '),
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         color: AppColors.muted,
@@ -305,7 +280,7 @@ class _BalanceCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => _showRemind(context),
+                  onPressed: _settling ? null : _showRemind,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: context.colors.border),
                     shape: RoundedRectangleBorder(
@@ -325,7 +300,7 @@ class _BalanceCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: onSettle,
+                  onPressed: _settling ? null : _confirmSettle,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -334,13 +309,22 @@ class _BalanceCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
-                  child: Text(
-                    'Mark Settled',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _settling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Mark Settled',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -350,10 +334,88 @@ class _BalanceCard extends StatelessWidget {
     );
   }
 
-  void _showRemind(BuildContext context) {
+  Future<void> _confirmSettle() async {
+    final amount = CurrencyFormatter.format(widget.entry.amount.abs());
+    final name = widget.entry.member.name.isNotEmpty
+        ? widget.entry.member.name
+        : widget.entry.member.userId;
+    final iOwe = widget.entry.amount < 0;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Settle Up',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Text(
+          iOwe
+              ? 'Mark your $amount debt to $name as paid?'
+              : 'Mark $name\'s $amount debt to you as settled?',
+          style: GoogleFonts.inter(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel',
+                style: GoogleFonts.inter(color: AppColors.muted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Settle',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _settling = true);
+    final ok = await widget.onSettle();
+    if (!mounted) return;
+    setState(() => _settling = false);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Reminder sent to $memberName'),
+        content: Row(
+          children: [
+            Icon(
+              ok
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.error_outline_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              ok ? 'Settled!' : 'Something went wrong. Try again.',
+              style: GoogleFonts.inter(fontSize: 13),
+            ),
+          ],
+        ),
+        backgroundColor: ok ? AppColors.success : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showRemind() {
+    final name = widget.entry.member.name.isNotEmpty
+        ? widget.entry.member.name
+        : widget.entry.member.userId;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Reminder sent to $name'),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ),

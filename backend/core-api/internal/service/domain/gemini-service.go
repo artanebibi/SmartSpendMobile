@@ -55,7 +55,7 @@ type Part struct {
 
 type GeminiReceiptPayload struct {
 	Title      string  `json:"title"`
-	Price      float32 `json:"price"`
+	Price      float64 `json:"price"`
 	CategoryID *int64  `json:"category_id"`
 	Type       string  `json:"type"`
 	City       string  `json:"city"`

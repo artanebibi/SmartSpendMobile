@@ -153,6 +153,14 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 	wallet := r.Group(walletBasePath, middleware.AuthMiddleware())
 	{
+		wallet.POST("", s.CreateWallet)
+		wallet.GET("", s.GetUserWallets)
+		wallet.POST("/join", s.JoinWalletByCode)
+		wallet.GET("/:id", s.GetWalletDetail)
+		wallet.POST("/:id/join", s.JoinWallet)
+		wallet.DELETE("/:id/leave", s.LeaveWallet)
+		wallet.DELETE("/:id", s.DeleteWallet)
+		wallet.POST("/:id/settle", s.SettleWallet)
 		wallet.POST("/:id/expense", s.LinkWalletExpense)
 		wallet.DELETE("/:id/expense/:walletTxId", s.UnlinkWalletExpense)
 		wallet.GET("/:id/balances", s.GetWalletBalances)

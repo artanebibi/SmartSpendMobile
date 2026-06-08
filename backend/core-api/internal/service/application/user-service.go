@@ -30,6 +30,7 @@ func mapToUserDTO(user *model.User) *dto.UserDto {
 		return nil
 	}
 	return &dto.UserDto{
+		ID:                user.ID,
 		FirstName:         user.FirstName,
 		LastName:          user.LastName,
 		Username:          user.Username,

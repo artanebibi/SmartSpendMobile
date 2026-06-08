@@ -42,4 +42,14 @@ class ApiEndpoints {
   // Savings
   static const saving = '/api/saving';
   static String savingById(dynamic id) => '/api/saving/$id';
+
+  // Wallets
+  static const wallet = '/api/wallet';
+  static String walletById(dynamic id) => '/api/wallet/$id';
+  static String walletJoin(dynamic id) => '/api/wallet/$id/join';
+  static const walletJoinByCode = '/api/wallet/join';
+  static String walletLeave(dynamic id) => '/api/wallet/$id/leave';
+  static String walletSettle(dynamic id) => '/api/wallet/$id/settle';
+  static String walletBalances(dynamic id) => '/api/wallet/$id/balances';
+  static String walletExpense(dynamic id) => '/api/wallet/$id/expense';
 }

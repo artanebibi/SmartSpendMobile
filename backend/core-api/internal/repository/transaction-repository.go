@@ -112,7 +112,7 @@ func (d *databaseTransactionRepository) Update(transaction model.Transaction, id
 		}
 	}()
 
-	var oldPrice float32
+	var oldPrice float64
 	var oldType string
 	var ownerId string
 	err = tx.QueryRow(`SELECT price, type, owner_id FROM transactions WHERE id = $1`, id).Scan(&oldPrice, &oldType, &ownerId)
@@ -135,7 +135,7 @@ func (d *databaseTransactionRepository) Update(transaction model.Transaction, id
 		return err
 	}
 
-	var balanceAdjustment float32
+	var balanceAdjustment float64
 	if oldType == "Expense" {
 		balanceAdjustment += oldPrice
 	} else if oldType == "Income" {
@@ -241,7 +241,7 @@ func (d *databaseTransactionRepository) Delete(id int64, userId string) error {
 		return err
 	}
 
-	var balanceAdjustment float32
+	var balanceAdjustment float64
 	if t.Type == "Expense" {
 		balanceAdjustment += t.Price
 	} else if t.Type == "Income" {

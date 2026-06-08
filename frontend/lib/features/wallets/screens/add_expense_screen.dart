@@ -6,6 +6,10 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/date_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../transactions/models/transaction_model.dart';
+import '../../transactions/providers/transaction_provider.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -18,124 +22,665 @@ class AddExpenseScreen extends StatefulWidget {
 }
 
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
-  final _descController = TextEditingController();
-  String _amount = '0';
-  WalletMember? _payer;
-  bool _equalSplit = true;
+  TransactionModel? _selected;
+  bool _saving = false;
+  String? _saveError;
+
+  int get _walletId => int.tryParse(widget.walletId) ?? 0;
 
   @override
-  void dispose() {
-    _descController.dispose();
-    super.dispose();
-  }
-
-  void _onNumKey(String key) {
-    setState(() {
-      if (key == '⌫') {
-        if (_amount.length > 1) {
-          _amount = _amount.substring(0, _amount.length - 1);
-        } else {
-          _amount = '0';
-        }
-      } else if (key == '.') {
-        if (!_amount.contains('.')) _amount += '.';
-      } else {
-        if (_amount == '0') {
-          _amount = key;
-        } else {
-          _amount += key;
-        }
-      }
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tp = context.read<TransactionProvider>();
+      if (tp.transactions.isEmpty) tp.load();
     });
   }
 
-  void _save(WalletModel wallet) {
-    final amount = double.tryParse(_amount) ?? 0;
-    if (amount <= 0) return;
-    final desc = _descController.text.trim();
-    if (desc.isEmpty) return;
-    final payer = _payer ?? kMockMe;
+  Future<void> _save(
+    WalletModel wallet,
+    TransactionModel tx,
+    List<Map<String, dynamic>> splits,
+  ) async {
+    setState(() {
+      _saving = true;
+      _saveError = null;
+    });
 
-    context.read<WalletProvider>().addExpense(
-          walletId: widget.walletId,
-          expense: WalletExpense(
-            description: desc,
-            amount: amount,
-            payer: payer,
-            date: DateTime.now(),
-            splitWith: wallet.members,
-          ),
+    final ok = await context.read<WalletProvider>().linkExpense(
+          walletId: _walletId,
+          transactionId: tx.id,
+          splits: splits,
         );
-    context.pop();
+
+    if (!mounted) return;
+    if (ok) {
+      context.pop();
+    } else {
+      setState(() {
+        _saving = false;
+        _saveError =
+            context.read<WalletProvider>().error ?? 'Failed to add expense';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final wallet =
-        context.watch<WalletProvider>().findById(widget.walletId);
-
-    if (wallet == null) {
+        context.watch<WalletProvider>().findById(_walletId);
+    if (wallet == null || wallet.members.isEmpty) {
       return Scaffold(
-        backgroundColor: AppColors.lightBg,
-        appBar: AppBar(backgroundColor: AppColors.lightBg, elevation: 0),
+        backgroundColor: context.colors.bg,
+        appBar: AppBar(backgroundColor: context.colors.bg, elevation: 0),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    _payer ??= kMockMe;
-    final amount = double.tryParse(_amount) ?? 0;
-    final perPerson =
-        amount > 0 ? amount / wallet.members.length : 0.0;
+    if (_selected == null) {
+      return _PickerView(
+        wallet: wallet,
+        onPicked: (tx) => setState(() => _selected = tx),
+      );
+    }
+
+    return _SplitView(
+      wallet: wallet,
+      tx: _selected!,
+      saving: _saving,
+      error: _saveError,
+      onBack: () => setState(() {
+        _selected = null;
+        _saveError = null;
+      }),
+      onSave: (wallet, tx, splits) => _save(wallet, tx, splits),
+    );
+  }
+}
+
+// ─── Phase 1: Pick a transaction ─────────────────────────────────────────────
+
+class _PickerView extends StatefulWidget {
+  const _PickerView({required this.wallet, required this.onPicked});
+  final WalletModel wallet;
+  final ValueChanged<TransactionModel> onPicked;
+
+  @override
+  State<_PickerView> createState() => _PickerViewState();
+}
+
+class _PickerViewState extends State<_PickerView> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final tp = context.watch<TransactionProvider>();
+    final alreadyLinked = widget.wallet.transactions
+        .map((t) => t.transactionId)
+        .toSet();
+
+    final expenses = tp.transactions
+        .where((t) => t.isExpense)
+        .where((t) => !alreadyLinked.contains(t.id))
+        .where((t) =>
+            _query.isEmpty ||
+            t.title.toLowerCase().contains(_query.toLowerCase()))
+        .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.lightBg,
+      backgroundColor: context.colors.bg,
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            _Header(
+              title: 'Add Expense',
+              onBack: () => context.pop(),
+            ),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: TextField(
+                style: GoogleFonts.inter(
+                    fontSize: 14, color: context.colors.text),
+                decoration: InputDecoration(
+                  hintText: 'Search your expenses...',
+                  hintStyle: GoogleFonts.inter(
+                      fontSize: 13, color: AppColors.muted),
+                  prefixIcon: Icon(Icons.search_rounded,
+                      color: AppColors.muted, size: 20),
+                  filled: true,
+                  fillColor: context.colors.card,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                        color: AppColors.primary, width: 1.5),
+                  ),
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Text(
+                    'Your Expenses',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: context.colors.text,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '(already added to this wallet are hidden)',
+                    style: GoogleFonts.inter(
+                        fontSize: 11, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: tp.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : expenses.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Text(
+                              _query.isEmpty
+                                  ? 'No expense transactions found.\nAdd expenses from the Transactions tab first.'
+                                  : 'No expenses match "$_query".',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.inter(
+                                  color: AppColors.muted, fontSize: 13),
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                          itemCount: expenses.length,
+                          itemBuilder: (_, i) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _TxTile(
+                              tx: expenses[i],
+                              onTap: () => widget.onPicked(expenses[i]),
+                            ),
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TxTile extends StatelessWidget {
+  const _TxTile({required this.tx, required this.onTap});
+  final TransactionModel tx;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: context.colors.card,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.receipt_long_rounded,
+                  color: AppColors.primary, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tx.title,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: context.colors.text,
+                    ),
+                  ),
+                  Text(
+                    '${tx.categoryName ?? 'Other'} · ${DateFormatter.groupLabel(tx.dateMade)}',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              CurrencyFormatter.format(tx.price),
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: context.colors.text,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.muted, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Phase 2: Confirm split ───────────────────────────────────────────────────
+
+class _SplitView extends StatefulWidget {
+  const _SplitView({
+    required this.wallet,
+    required this.tx,
+    required this.saving,
+    required this.error,
+    required this.onBack,
+    required this.onSave,
+  });
+
+  final WalletModel wallet;
+  final TransactionModel tx;
+  final bool saving;
+  final String? error;
+  final VoidCallback onBack;
+  final Future<void> Function(
+      WalletModel, TransactionModel, List<Map<String, dynamic>>) onSave;
+
+  @override
+  State<_SplitView> createState() => _SplitViewState();
+}
+
+class _SplitViewState extends State<_SplitView> {
+  bool _isCustom = false;
+  late final List<TextEditingController> _controllers;
+
+  @override
+  void initState() {
+    super.initState();
+    final members = widget.wallet.members;
+    final equalShare = members.isEmpty ? 0.0 : widget.tx.price / members.length;
+    _controllers = List.generate(
+      members.length,
+      (i) => TextEditingController(
+        text: equalShare.toStringAsFixed(2),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  double get _customTotal => _controllers.fold(
+        0.0,
+        (sum, c) => sum + (double.tryParse(c.text) ?? 0.0),
+      );
+
+  double get _remaining =>
+      double.parse((widget.tx.price - _customTotal).toStringAsFixed(2));
+
+  bool get _customValid => _remaining.abs() < 0.02;
+
+  List<Map<String, dynamic>> _buildEqualSplits() {
+    final members = widget.wallet.members;
+    if (members.isEmpty) return [];
+    final per = double.parse(
+        (widget.tx.price / members.length).toStringAsFixed(2));
+    double assigned = 0;
+    final splits = <Map<String, dynamic>>[];
+    for (int i = 0; i < members.length - 1; i++) {
+      splits.add({'user_id': members[i].userId, 'share': per});
+      assigned += per;
+    }
+    splits.add({
+      'user_id': members.last.userId,
+      'share': double.parse(
+          (widget.tx.price - assigned).toStringAsFixed(2)),
+    });
+    return splits;
+  }
+
+  List<Map<String, dynamic>> _buildCustomSplits() {
+    return List.generate(widget.wallet.members.length, (i) {
+      return {
+        'user_id': widget.wallet.members[i].userId,
+        'share': double.parse(
+            (double.tryParse(_controllers[i].text) ?? 0.0)
+                .toStringAsFixed(2)),
+      };
+    });
+  }
+
+  void _onModeChanged(bool custom) {
+    if (custom == _isCustom) return;
+    setState(() {
+      _isCustom = custom;
+      if (!custom) {
+        // Reset fields to equal amounts
+        final members = widget.wallet.members;
+        final per = members.isEmpty
+            ? 0.0
+            : widget.tx.price / members.length;
+        for (final c in _controllers) {
+          c.text = per.toStringAsFixed(2);
+        }
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final myId = context.watch<AuthProvider>().user?.id ?? '';
+    final members = widget.wallet.members;
+    final remaining = _isCustom ? _remaining : 0.0;
+    final canSave =
+        !widget.saving && (!_isCustom || _customValid);
+
+    return Scaffold(
+      backgroundColor: context.colors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _Header(title: 'Confirm Split', onBack: widget.onBack),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 8),
-                    _buildAmountDisplay(),
+                    // Transaction summary card
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: context.colors.card,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color:
+                                  AppColors.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.receipt_long_rounded,
+                                color: AppColors.primary, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.tx.title,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: context.colors.text,
+                                  ),
+                                ),
+                                Text(
+                                  '${widget.tx.categoryName ?? 'Other'} · ${DateFormatter.groupLabel(widget.tx.dateMade)}',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 12, color: AppColors.muted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            CurrencyFormatter.format(widget.tx.price),
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: context.colors.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    _buildNumPad(),
-                    const SizedBox(height: 20),
-                    _sectionLabel('DESCRIPTION'),
-                    const SizedBox(height: 6),
-                    _buildDescInput(),
-                    const SizedBox(height: 20),
-                    _sectionLabel('PAID BY'),
+
+                    // Equal / Custom toggle
+                    Container(
+                      height: 44,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: context.colors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.colors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          _SplitTab(
+                            label: 'Equal Split',
+                            selected: !_isCustom,
+                            onTap: () => _onModeChanged(false),
+                          ),
+                          _SplitTab(
+                            label: 'Custom',
+                            selected: _isCustom,
+                            onTap: () => _onModeChanged(true),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Remaining indicator (custom mode only)
+                    if (_isCustom) ...[
+                      _RemainingBar(
+                        total: widget.tx.price,
+                        remaining: remaining,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    Text(
+                      _isCustom ? 'ENTER AMOUNT PER PERSON' : 'SPLIT EQUALLY BETWEEN',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.muted,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 10),
-                    _buildPayerSelector(wallet.members),
-                    const SizedBox(height: 20),
-                    _buildSplitToggle(),
-                    if (amount > 0) ...[
-                      const SizedBox(height: 16),
-                      _buildBreakdown(wallet.members, perPerson),
+
+                    // Members list
+                    Container(
+                      decoration: BoxDecoration(
+                        color: context.colors.card,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: members.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 68),
+                        itemBuilder: (_, i) {
+                          final m = members[i];
+                          final isMe = m.userId == myId;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: m.color,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      m.initials,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    isMe ? 'You' : m.name,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: context.colors.text,
+                                    ),
+                                  ),
+                                ),
+                                if (_isCustom)
+                                  SizedBox(
+                                    width: 90,
+                                    child: TextField(
+                                      controller: _controllers[i],
+                                      keyboardType: const TextInputType
+                                          .numberWithOptions(decimal: true),
+                                      textAlign: TextAlign.right,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: context.colors.text,
+                                      ),
+                                      decoration: InputDecoration(
+                                        prefixText: '\$ ',
+                                        prefixStyle: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: AppColors.muted,
+                                        ),
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 8),
+                                        filled: true,
+                                        fillColor: context.colors.bg,
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: const BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: const BorderSide(
+                                              color: AppColors.border),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          borderSide: const BorderSide(
+                                              color: AppColors.primary,
+                                              width: 1.5),
+                                        ),
+                                      ),
+                                      onChanged: (_) => setState(() {}),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    CurrencyFormatter.format(
+                                        members.isEmpty
+                                            ? 0
+                                            : widget.tx.price /
+                                                members.length),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    if (widget.error != null) ...[
+                      const SizedBox(height: 12),
+                      _ErrorBanner(message: widget.error!),
                     ],
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: () => _save(wallet),
+                        onPressed: canSave
+                            ? () => widget.onSave(
+                                  widget.wallet,
+                                  widget.tx,
+                                  _isCustom
+                                      ? _buildCustomSplits()
+                                      : _buildEqualSplits(),
+                                )
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AppColors.primary.withValues(alpha: 0.5),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: Text(
-                          'Add Expense',
-                          style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600),
-                        ),
+                        child: widget.saving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.5, color: Colors.white),
+                              )
+                            : Text(
+                                _isCustom && !_customValid
+                                    ? 'Amounts must total \$${widget.tx.price.toStringAsFixed(2)}'
+                                    : 'Add to Wallet',
+                                style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -148,324 +693,101 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
     );
   }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: context.colors.card,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: context.colors.border),
-              ),
-              child: Icon(Icons.arrow_back_ios_new_rounded,
-                  size: 16, color: context.colors.text),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Add Expense',
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: context.colors.text,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAmountDisplay() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              '\$',
-              style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.w400,
-                color: AppColors.muted,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            _amount,
-            style: GoogleFonts.inter(
-              fontSize: 56,
-              fontWeight: FontWeight.w800,
-              color: context.colors.text,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNumPad() {
-    const keys = [
-      '1', '2', '3',
-      '4', '5', '6',
-      '7', '8', '9',
-      '.', '0', '⌫',
-    ];
-
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 8,
-      crossAxisSpacing: 8,
-      childAspectRatio: 2.4,
-      children: keys.map((k) => _NumKey(label: k, onTap: _onNumKey)).toList(),
-    );
-  }
-
-  Widget _buildDescInput() {
-    return TextField(
-      controller: _descController,
-      style: GoogleFonts.inter(fontSize: 14, color: context.colors.text),
-      decoration: InputDecoration(
-        hintText: 'Add a description...',
-        hintStyle:
-            GoogleFonts.inter(fontSize: 14, color: AppColors.muted),
-        filled: true,
-        fillColor: context.colors.card,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPayerSelector(List<WalletMember> members) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: members.map((m) {
-        final selected = _payer?.name == m.name;
-        return GestureDetector(
-          onTap: () => setState(() => _payer = m),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: selected ? 1.0 : 0.4,
-            child: Column(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: m.color,
-                    shape: BoxShape.circle,
-                    border: selected
-                        ? Border.all(color: Colors.white, width: 3)
-                        : null,
-                    boxShadow: selected
-                        ? [
-                            BoxShadow(
-                                color: m.color.withValues(alpha: 0.4),
-                                blurRadius: 8)
-                          ]
-                        : null,
-                  ),
-                  child: Center(
-                    child: Text(
-                      m.initials,
-                      style: GoogleFonts.inter(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  m.name == kMockMe.name ? 'You' : m.name,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.w400,
-                    color: context.colors.text,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildSplitToggle() {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.colors.border),
-      ),
-      child: Row(
-        children: [
-          _SplitTab(
-            label: 'Equal Split',
-            selected: _equalSplit,
-            onTap: () => setState(() => _equalSplit = true),
-          ),
-          _SplitTab(
-            label: 'Custom',
-            selected: !_equalSplit,
-            onTap: () => setState(() => _equalSplit = false),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBreakdown(List<WalletMember> members, double perPerson) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.secondaryBg,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Per person breakdown',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...members.map(
-            (m) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 24,
-                    height: 24,
-                    decoration:
-                        BoxDecoration(color: m.color, shape: BoxShape.circle),
-                    child: Center(
-                      child: Text(
-                        m.initials,
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    m.name == kMockMe.name ? 'You' : m.name,
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: context.colors.text),
-                  ),
-                  const Spacer(),
-                  Text(
-                    CurrencyFormatter.format(perPerson),
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.inter(
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        color: AppColors.muted,
-        letterSpacing: 0.5,
-      ),
-    );
-  }
 }
 
-class _NumKey extends StatefulWidget {
-  const _NumKey({required this.label, required this.onTap});
-  final String label;
-  final ValueChanged<String> onTap;
+// ─── Remaining amount bar ─────────────────────────────────────────────────────
 
-  @override
-  State<_NumKey> createState() => _NumKeyState();
-}
-
-class _NumKeyState extends State<_NumKey> {
-  bool _pressed = false;
+class _RemainingBar extends StatelessWidget {
+  const _RemainingBar({required this.total, required this.remaining});
+  final double total;
+  final double remaining;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap(widget.label);
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
-        decoration: BoxDecoration(
-          color: _pressed ? context.colors.secondaryBg : context.colors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: context.colors.border),
-        ),
-        child: Center(
-          child: Text(
-            widget.label,
-            style: GoogleFonts.inter(
-              fontSize: 20,
-              fontWeight: FontWeight.w500,
-              color: context.colors.text,
+    final isOver = remaining < -0.01;
+    final isExact = remaining.abs() < 0.02;
+    final color = isExact
+        ? AppColors.success
+        : isOver
+            ? AppColors.error
+            : AppColors.orange;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isExact
+                ? Icons.check_circle_outline_rounded
+                : Icons.info_outline_rounded,
+            color: color,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              isExact
+                  ? 'Amounts add up perfectly'
+                  : isOver
+                      ? 'Over by \$${remaining.abs().toStringAsFixed(2)}'
+                      : '\$${remaining.toStringAsFixed(2)} left to assign',
+              style: GoogleFonts.inter(fontSize: 12, color: color),
             ),
           ),
-        ),
+          Text(
+            '${CurrencyFormatter.format(total - remaining)} / ${CurrencyFormatter.format(total)}',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ─── Error banner ─────────────────────────────────────────────────────────────
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border:
+            Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: AppColors.error, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style:
+                  GoogleFonts.inter(fontSize: 12, color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Split mode tab ───────────────────────────────────────────────────────────
 
 class _SplitTab extends StatelessWidget {
   const _SplitTab(
@@ -496,6 +818,48 @@ class _SplitTab extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Shared header ────────────────────────────────────────────────────────────
+
+class _Header extends StatelessWidget {
+  const _Header({required this.title, required this.onBack});
+  final String title;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: context.colors.card,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: context.colors.border),
+              ),
+              child: Icon(Icons.arrow_back_ios_new_rounded,
+                  size: 16, color: context.colors.text),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: context.colors.text,
+            ),
+          ),
+        ],
       ),
     );
   }
