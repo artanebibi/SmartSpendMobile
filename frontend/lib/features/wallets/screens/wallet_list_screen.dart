@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/wallet_model.dart';
@@ -39,6 +40,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
     final totalOwedToMe = provider.totalOwedToMe;
     final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.watch<ExchangeRateService>();
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -51,7 +53,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             if (totalOwed > 0 || totalOwedToMe > 0)
               SliverToBoxAdapter(
-                child: _buildSettlementAlert(context, totalOwed, totalOwedToMe, symbol),
+                child: _buildSettlementAlert(context, totalOwed, totalOwedToMe, symbol, svc, currency),
               ),
             if (totalOwed > 0 || totalOwedToMe > 0)
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
@@ -344,8 +346,8 @@ class _WalletListScreenState extends State<WalletListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => codeCtrl.dispose());
   }
 
-  Widget _buildSettlementAlert(
-      BuildContext context, double totalOwed, double totalOwedToMe, String symbol) {
+  Widget _buildSettlementAlert(BuildContext context, double totalOwed,
+      double totalOwedToMe, String symbol, ExchangeRateService svc, String currency) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -374,7 +376,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
                 children: [
                   if (totalOwed > 0)
                     Text(
-                      'You owe ${CurrencyFormatter.format(totalOwed, symbol: symbol)} total',
+                      'You owe ${CurrencyFormatter.format(svc.convertFromMkd(totalOwed, currency), symbol: symbol)} total',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -383,7 +385,7 @@ class _WalletListScreenState extends State<WalletListScreen> {
                     ),
                   if (totalOwedToMe > 0)
                     Text(
-                      '${CurrencyFormatter.format(totalOwedToMe, symbol: symbol)} owed to you',
+                      '${CurrencyFormatter.format(svc.convertFromMkd(totalOwedToMe, currency), symbol: symbol)} owed to you',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -426,7 +428,9 @@ class _WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spent = wallet.totalSpent;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final svc = context.watch<ExchangeRateService>();
+    final spent = svc.convertFromMkd(wallet.totalSpent, currency);
     final double? goal = null; // monthly goal not yet in API response
     final pct = goal != null && goal > 0
         ? (spent / goal).clamp(0.0, 1.0)

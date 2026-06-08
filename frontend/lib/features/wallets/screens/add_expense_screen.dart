@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -236,6 +237,9 @@ class _TxTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.watch<ExchangeRateService>();
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -278,7 +282,7 @@ class _TxTile extends StatelessWidget {
               ),
             ),
             Text(
-              CurrencyFormatter.format(tx.price),
+              CurrencyFormatter.format(svc.convertFromMkd(tx.price, currency), symbol: symbol),
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -327,7 +331,10 @@ class _SplitViewState extends State<_SplitView> {
   void initState() {
     super.initState();
     final members = widget.wallet.members;
-    final equalShare = members.isEmpty ? 0.0 : widget.tx.price / members.length;
+    final svc = context.read<ExchangeRateService>();
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final equalShareMkd = members.isEmpty ? 0.0 : widget.tx.price / members.length;
+    final equalShare = svc.convertFromMkd(equalShareMkd, currency);
     _controllers = List.generate(
       members.length,
       (i) => TextEditingController(
@@ -349,11 +356,6 @@ class _SplitViewState extends State<_SplitView> {
         (sum, c) => sum + (double.tryParse(c.text) ?? 0.0),
       );
 
-  double get _remaining =>
-      double.parse((widget.tx.price - _customTotal).toStringAsFixed(2));
-
-  bool get _customValid => _remaining.abs() < 0.02;
-
   List<Map<String, dynamic>> _buildEqualSplits() {
     final members = widget.wallet.members;
     if (members.isEmpty) return [];
@@ -374,12 +376,14 @@ class _SplitViewState extends State<_SplitView> {
   }
 
   List<Map<String, dynamic>> _buildCustomSplits() {
+    final svc = context.read<ExchangeRateService>();
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
     return List.generate(widget.wallet.members.length, (i) {
+      final userCurrencyShare = double.tryParse(_controllers[i].text) ?? 0.0;
       return {
         'user_id': widget.wallet.members[i].userId,
         'share': double.parse(
-            (double.tryParse(_controllers[i].text) ?? 0.0)
-                .toStringAsFixed(2)),
+            svc.convertToMkd(userCurrencyShare, currency).toStringAsFixed(2)),
       };
     });
   }
@@ -389,11 +393,12 @@ class _SplitViewState extends State<_SplitView> {
     setState(() {
       _isCustom = custom;
       if (!custom) {
-        // Reset fields to equal amounts
+        final svc = context.read<ExchangeRateService>();
+        final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
         final members = widget.wallet.members;
         final per = members.isEmpty
             ? 0.0
-            : widget.tx.price / members.length;
+            : svc.convertFromMkd(widget.tx.price / members.length, currency);
         for (final c in _controllers) {
           c.text = per.toStringAsFixed(2);
         }
@@ -404,10 +409,17 @@ class _SplitViewState extends State<_SplitView> {
   @override
   Widget build(BuildContext context) {
     final myId = context.watch<AuthProvider>().user?.id ?? '';
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.watch<ExchangeRateService>();
+    final txConverted = svc.convertFromMkd(widget.tx.price, currency);
     final members = widget.wallet.members;
-    final remaining = _isCustom ? _remaining : 0.0;
+    // Validation and remaining bar work in user's preferred currency
+    final customTotal = _isCustom ? _customTotal : txConverted;
+    final remaining = txConverted - customTotal;
+    final customValid = remaining.abs() < 0.02;
     final canSave =
-        !widget.saving && (!_isCustom || _customValid);
+        !widget.saving && (!_isCustom || customValid);
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -464,7 +476,7 @@ class _SplitViewState extends State<_SplitView> {
                             ),
                           ),
                           Text(
-                            CurrencyFormatter.format(widget.tx.price),
+                            CurrencyFormatter.format(txConverted, symbol: symbol),
                             style: GoogleFonts.inter(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -505,7 +517,7 @@ class _SplitViewState extends State<_SplitView> {
                     // Remaining indicator (custom mode only)
                     if (_isCustom) ...[
                       _RemainingBar(
-                        total: widget.tx.price,
+                        total: txConverted,
                         remaining: remaining,
                       ),
                       const SizedBox(height: 12),
@@ -585,7 +597,7 @@ class _SplitViewState extends State<_SplitView> {
                                         color: context.colors.text,
                                       ),
                                       decoration: InputDecoration(
-                                        prefixText: '\$ ',
+                                        prefixText: symbol,
                                         prefixStyle: GoogleFonts.inter(
                                           fontSize: 13,
                                           color: AppColors.muted,
@@ -624,8 +636,8 @@ class _SplitViewState extends State<_SplitView> {
                                     CurrencyFormatter.format(
                                         members.isEmpty
                                             ? 0
-                                            : widget.tx.price /
-                                                members.length),
+                                            : txConverted / members.length,
+                                        symbol: symbol),
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
@@ -674,8 +686,8 @@ class _SplitViewState extends State<_SplitView> {
                                     strokeWidth: 2.5, color: Colors.white),
                               )
                             : Text(
-                                _isCustom && !_customValid
-                                    ? 'Amounts must total \$${widget.tx.price.toStringAsFixed(2)}'
+                                _isCustom && !customValid
+                                    ? 'Amounts must total ${CurrencyFormatter.format(txConverted, symbol: symbol)}'
                                     : 'Add to Wallet',
                                 style: GoogleFonts.inter(
                                     fontSize: 15,
@@ -704,6 +716,8 @@ class _RemainingBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final symbol = CurrencyFormatter.symbolFor(
+        context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD');
     final isOver = remaining < -0.01;
     final isExact = remaining.abs() < 0.02;
     final color = isExact
@@ -734,13 +748,13 @@ class _RemainingBar extends StatelessWidget {
               isExact
                   ? 'Amounts add up perfectly'
                   : isOver
-                      ? 'Over by \$${remaining.abs().toStringAsFixed(2)}'
-                      : '\$${remaining.toStringAsFixed(2)} left to assign',
+                      ? 'Over by $symbol${remaining.abs().toStringAsFixed(2)}'
+                      : '$symbol${remaining.toStringAsFixed(2)} left to assign',
               style: GoogleFonts.inter(fontSize: 12, color: color),
             ),
           ),
           Text(
-            '${CurrencyFormatter.format(total - remaining)} / ${CurrencyFormatter.format(total)}',
+            '${CurrencyFormatter.format(total - remaining, symbol: symbol)} / ${CurrencyFormatter.format(total, symbol: symbol)}',
             style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w600,

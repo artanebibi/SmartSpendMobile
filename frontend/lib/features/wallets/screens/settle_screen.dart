@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/wallet_model.dart';
 import '../providers/wallet_provider.dart';
 
@@ -18,6 +20,9 @@ class SettleScreen extends StatelessWidget {
     final balances = provider.myNetBalances;
     final totalOwed = provider.totalOwed;
     final totalOwedToMe = provider.totalOwedToMe;
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.watch<ExchangeRateService>();
 
     return Scaffold(
       backgroundColor: context.colors.bg,
@@ -27,7 +32,7 @@ class SettleScreen extends StatelessWidget {
             SliverToBoxAdapter(child: _buildHeader(context)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             SliverToBoxAdapter(
-                child: _buildNetCard(context, totalOwed, totalOwedToMe)),
+                child: _buildNetCard(context, totalOwed, totalOwedToMe, symbol, svc, currency)),
             const SliverToBoxAdapter(child: SizedBox(height: 16)),
             if (balances.isEmpty)
               SliverFillRemaining(
@@ -115,7 +120,8 @@ class SettleScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNetCard(BuildContext context, double totalOwed, double totalOwedToMe) {
+  Widget _buildNetCard(BuildContext context, double totalOwed, double totalOwedToMe,
+      String symbol, ExchangeRateService svc, String currency) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -144,7 +150,7 @@ class SettleScreen extends StatelessWidget {
                 children: [
                   if (totalOwed > 0)
                     Text(
-                      'You owe ${CurrencyFormatter.format(totalOwed)}',
+                      'You owe ${CurrencyFormatter.format(svc.convertFromMkd(totalOwed, currency), symbol: symbol)}',
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -153,7 +159,7 @@ class SettleScreen extends StatelessWidget {
                     ),
                   if (totalOwedToMe > 0)
                     Text(
-                      '${CurrencyFormatter.format(totalOwedToMe)} owed to you',
+                      '${CurrencyFormatter.format(svc.convertFromMkd(totalOwedToMe, currency), symbol: symbol)} owed to you',
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -206,7 +212,10 @@ class _BalanceCardState extends State<_BalanceCard> {
   @override
   Widget build(BuildContext context) {
     final iOwe = widget.entry.amount < 0;
-    final absAmount = widget.entry.amount.abs();
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.watch<ExchangeRateService>();
+    final absAmount = svc.convertFromMkd(widget.entry.amount.abs(), currency);
     final memberName = widget.entry.member.name.isNotEmpty
         ? widget.entry.member.name
         : widget.entry.member.userId;
@@ -266,7 +275,7 @@ class _BalanceCardState extends State<_BalanceCard> {
                 ),
               ),
               Text(
-                CurrencyFormatter.format(absAmount),
+                CurrencyFormatter.format(absAmount, symbol: symbol),
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -335,7 +344,11 @@ class _BalanceCardState extends State<_BalanceCard> {
   }
 
   Future<void> _confirmSettle() async {
-    final amount = CurrencyFormatter.format(widget.entry.amount.abs());
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.read<ExchangeRateService>();
+    final amount = CurrencyFormatter.format(
+        svc.convertFromMkd(widget.entry.amount.abs(), currency), symbol: symbol);
     final name = widget.entry.member.name.isNotEmpty
         ? widget.entry.member.name
         : widget.entry.member.userId;

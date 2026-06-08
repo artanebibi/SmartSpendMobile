@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_colors.dart';
+import '../../../core/services/exchange_rate_service.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -44,6 +45,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final currency =
         context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
     final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.watch<ExchangeRateService>();
 
     if (wallet == null || provider.loading) {
       return Scaffold(
@@ -69,7 +71,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 SliverToBoxAdapter(child: _buildHeader(context, wallet)),
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
                 SliverToBoxAdapter(
-                    child: _buildSummaryCard(wallet, symbol)),
+                    child: _buildSummaryCard(wallet, symbol, svc, currency)),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(
                     child: _buildInviteCard(context, wallet.inviteCode)),
@@ -77,7 +79,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 SliverToBoxAdapter(
                     child: _buildBalancesSection(
                         context, relevantBalances, symbol,
-                        provider: provider)),
+                        provider: provider, svc: svc, currency: currency)),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(child: _buildExpensesHeader(context)),
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -271,9 +273,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     final provider = context.read<WalletProvider>();
     final name = entry.member.name.isNotEmpty ? entry.member.name : 'this person';
     final iOwe = entry.amount < 0;
-    final symbol = CurrencyFormatter.symbolFor(
-        context.read<AuthProvider>().user?.preferredCurrency ?? 'USD');
-    final amount = CurrencyFormatter.format(entry.amount.abs(), symbol: symbol);
+    final currency = context.read<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final symbol = CurrencyFormatter.symbolFor(currency);
+    final svc = context.read<ExchangeRateService>();
+    final amount = CurrencyFormatter.format(
+        svc.convertFromMkd(entry.amount.abs(), currency), symbol: symbol);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -367,8 +371,9 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
-  Widget _buildSummaryCard(WalletModel wallet, String symbol) {
-    final spent = wallet.totalSpent;
+  Widget _buildSummaryCard(WalletModel wallet, String symbol,
+      ExchangeRateService svc, String currency) {
+    final spent = svc.convertFromMkd(wallet.totalSpent, currency);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -424,6 +429,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     List<NetEntry> balances,
     String symbol, {
     required WalletProvider provider,
+    required ExchangeRateService svc,
+    required String currency,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -542,7 +549,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${owedToMe ? '+' : '-'}${CurrencyFormatter.format(e.amount.abs(), symbol: symbol)}',
+                            '${owedToMe ? '+' : '-'}${CurrencyFormatter.format(svc.convertFromMkd(e.amount.abs(), currency), symbol: symbol)}',
                             style: GoogleFonts.inter(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
@@ -657,6 +664,9 @@ class _TransactionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currency = context.watch<AuthProvider>().user?.preferredCurrency ?? 'USD';
+    final svc = context.watch<ExchangeRateService>();
+
     final payer = _payer;
     final payerInitials = payer?.initials ??
         (tx.payerUserId.isNotEmpty ? tx.payerUserId[0].toUpperCase() : '?');
@@ -665,14 +675,16 @@ class _TransactionRow extends StatelessWidget {
         ? 'You'
         : (payer?.name.isNotEmpty == true ? payer!.name : tx.payerUserId);
 
-    // My split share
+    // My split share — amounts in MKD, convert for display
     final mySplit = tx.splits
         .where((s) => s.userId == myUserId)
         .firstOrNull;
     final isMePayer = tx.payerUserId == myUserId;
-    final myShareDisplay = isMePayer
+    final myShareDisplayMkd = isMePayer
         ? tx.price - (mySplit?.share ?? 0) // what others owe me
         : -(mySplit?.share ?? 0);           // what I owe
+    final myShareDisplay = svc.convertFromMkd(myShareDisplayMkd.abs(), currency) *
+        (myShareDisplayMkd >= 0 ? 1 : -1);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -721,7 +733,7 @@ class _TransactionRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                CurrencyFormatter.format(tx.price, symbol: symbol),
+                CurrencyFormatter.format(svc.convertFromMkd(tx.price, currency), symbol: symbol),
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
